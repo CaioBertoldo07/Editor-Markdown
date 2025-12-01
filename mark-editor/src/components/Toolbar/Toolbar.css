@@ -1,0 +1,115 @@
+.toolbar {
+    padding: 12px 16px;
+    background: var(--bg-main);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    overflow-x: auto;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .toolbar {
+        padding: 8px;
+    }
+}
+
+.toolbar-group {
+    display: flex;
+    gap: 6px;
+    padding: 4px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+}
+
+/* Mobile: Grupos menores */
+@media (max-width: 768px) {
+    .toolbar-group {
+        gap: 4px;
+        padding: 3px;
+    }
+}
+
+.toolbar-btn {
+    width: 36px;
+    height: 36px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+/* Mobile: Botões menores */
+@media (max-width: 768px) {
+    .toolbar-btn {
+        width: 32px;
+        height: 32px;
+    }
+
+    .toolbar-btn svg {
+        width: 16px;
+        height: 16px;
+    }
+}
+
+.toolbar-btn svg {
+    opacity: 0.75;
+    transition: opacity 0.2s ease;
+}
+
+.toolbar-btn:hover {
+    background: var(--bg-card);
+    border-color: var(--accent);
+    color: var(--accent-light);
+    transform: translateY(-1px);
+}
+
+.toolbar-btn:hover svg {
+    opacity: 1;
+}
+
+.toolbar-btn:active {
+    transform: translateY(0);
+    background: var(--accent-transparent);
+}
+
+/* Tooltip - esconder em mobile */
+.toolbar-btn::after {
+    content: attr(title);
+    position: absolute;
+    bottom: -32px;
+    left: 50%;
+    transform: translateX(-50%) scale(0.95);
+    background: var(--bg-main);
+    color: var(--text-primary);
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: all 0.2s ease;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    z-index: 1000;
+}
+
+.toolbar-btn:hover::after {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+}
+
+@media (max-width: 768px) {
+    .toolbar-btn::after {
+        display: none;
+    }
+}

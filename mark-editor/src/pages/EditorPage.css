@@ -1,0 +1,123 @@
+.editor-page {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+}
+
+.editor-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.editor-header {
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-main);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .editor-header {
+        padding: 16px;
+        flex-wrap: wrap;
+    }
+}
+
+.header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .header-right {
+        gap: 8px;
+    }
+}
+
+.document-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text-primary);
+    cursor: pointer;
+    padding: 4px 8px;
+    margin: -4px -8px;
+    border-radius: 4px;
+    transition: background 0.2s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .document-title {
+        font-size: 20px;
+    }
+}
+
+.document-title:hover {
+    background: var(--bg-card);
+}
+
+.title-input {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text-primary);
+    background: var(--bg-card);
+    border: 2px solid var(--accent);
+    border-radius: 4px;
+    padding: 4px 8px;
+    outline: none;
+    font-family: 'Manrope', sans-serif;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .title-input {
+        font-size: 18px;
+    }
+}
+
+.document-info {
+    font-size: 12px;
+    color: var(--text-secondary);
+    padding-left: 8px;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .document-info {
+        font-size: 11px;
+    }
+}
+
+.editor-workspace {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+}
+
+/* Mobile: Layout vertical */
+@media (max-width: 1024px) {
+    .editor-workspace {
+        flex-direction: column;
+    }
+}

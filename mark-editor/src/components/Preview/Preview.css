@@ -1,0 +1,248 @@
+.preview-container {
+    flex: 1;
+    background: var(--bg-card);
+    overflow-y: auto;
+    border-left: 1px solid var(--border);
+}
+
+/* Mobile: sem borda lateral */
+@media (max-width: 1024px) {
+    .preview-container {
+        border-left: none;
+        border-top: 1px solid var(--border);
+        max-height: 50vh;
+    }
+}
+
+.preview-content {
+    padding: 32px;
+    max-width: 800px;
+    margin: 0 auto;
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .preview-content {
+        padding: 20px 16px;
+    }
+}
+
+.preview-empty {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    opacity: 0.5;
+}
+
+/* Estilos para elementos Markdown */
+.preview-content h1 {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+}
+
+@media (max-width: 768px) {
+    .preview-content h1 {
+        font-size: 24px;
+    }
+}
+
+.preview-content h2 {
+    font-size: 26px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-top: 32px;
+    margin-bottom: 12px;
+}
+
+@media (max-width: 768px) {
+    .preview-content h2 {
+        font-size: 20px;
+    }
+}
+
+.preview-content h3 {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-top: 24px;
+    margin-bottom: 10px;
+}
+
+@media (max-width: 768px) {
+    .preview-content h3 {
+        font-size: 18px;
+    }
+}
+
+.preview-content h4 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-top: 20px;
+    margin-bottom: 8px;
+}
+
+@media (max-width: 768px) {
+    .preview-content h4 {
+        font-size: 16px;
+    }
+}
+
+.preview-content p {
+    font-size: 15px;
+    line-height: 1.7;
+    color: var(--text-primary);
+    margin-bottom: 16px;
+}
+
+@media (max-width: 768px) {
+    .preview-content p {
+        font-size: 14px;
+    }
+}
+
+.preview-content strong {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.preview-content em {
+    font-style: italic;
+    color: var(--text-primary);
+}
+
+.preview-content code {
+    background: var(--bg-secondary);
+    color: var(--accent-light);
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+}
+
+@media (max-width: 768px) {
+    .preview-content code {
+        font-size: 12px;
+    }
+}
+
+.preview-content pre {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    overflow-x: auto;
+    margin-bottom: 16px;
+}
+
+@media (max-width: 768px) {
+    .preview-content pre {
+        padding: 12px;
+        font-size: 12px;
+    }
+}
+
+.preview-content pre code {
+    background: transparent;
+    padding: 0;
+    color: var(--text-primary);
+}
+
+.preview-content ul,
+.preview-content ol {
+    margin-left: 24px;
+    margin-bottom: 16px;
+}
+
+@media (max-width: 768px) {
+
+    .preview-content ul,
+    .preview-content ol {
+        margin-left: 20px;
+    }
+}
+
+.preview-content li {
+    font-size: 15px;
+    line-height: 1.7;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+@media (max-width: 768px) {
+    .preview-content li {
+        font-size: 14px;
+    }
+}
+
+.preview-content blockquote {
+    border-left: 4px solid var(--accent);
+    padding-left: 16px;
+    margin: 16px 0;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.preview-content a {
+    color: var(--accent-light);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.preview-content a:hover {
+    color: var(--accent);
+    text-decoration: underline;
+}
+
+.preview-content hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 24px 0;
+}
+
+.preview-content img {
+    max-width: 100%;
+    border-radius: var(--radius);
+    margin: 16px 0;
+}
+
+.preview-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 16px;
+    overflow-x: auto;
+    display: block;
+}
+
+@media (max-width: 768px) {
+    .preview-content table {
+        font-size: 13px;
+    }
+}
+
+.preview-content th,
+.preview-content td {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    text-align: left;
+}
+
+@media (max-width: 768px) {
+
+    .preview-content th,
+    .preview-content td {
+        padding: 6px 8px;
+    }
+}
+
+.preview-content th {
+    background: var(--bg-secondary);
+    font-weight: 600;
+}

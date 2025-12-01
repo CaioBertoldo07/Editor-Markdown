@@ -1,0 +1,124 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+/* TEMA DARK (Padrão) */
+:root[data-theme="dark"] {
+    --bg-main: #0D0D0D;
+    --bg-secondary: #111111;
+    --bg-card: #181818;
+    --border: #242424;
+
+    --text-primary: #F1F1F1;
+    --text-secondary: #A1A1A1;
+
+    --accent: #3B82F6;
+    --accent-hover: #2563EB;
+    --accent-light: #60A5FA;
+    --accent-transparent: rgba(59, 130, 246, 0.15);
+
+    --radius: 6px;
+    --shadow: 0 0 15px rgba(0, 0, 0, 0.35);
+}
+
+/* TEMA LIGHT */
+:root[data-theme="light"] {
+    --bg-main: #FFFFFF;
+    --bg-secondary: #F8F9FA;
+    --bg-card: #F1F3F5;
+    --border: #E2E8F0;
+
+    --text-primary: #1A202C;
+    --text-secondary: #64748B;
+
+    --accent: #3B82F6;
+    --accent-hover: #2563EB;
+    --accent-light: #1D4ED8;
+    --accent-transparent: rgba(59, 130, 246, 0.1);
+
+    --radius: 6px;
+    --shadow: 0 0 15px rgba(0, 0, 0, 0.08);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: var(--bg-main);
+    color: var(--text-primary);
+    font-family: 'Manrope', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow: hidden;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+#root {
+    width: 100vw;
+    height: 100vh;
+}
+
+/* Scrollbar customizado */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+}
+
+/* Animações globais */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* Transições suaves */
+button,
+a,
+input,
+textarea {
+    transition: all 0.2s ease;
+}
+
+/* Focus visível para acessibilidade */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
