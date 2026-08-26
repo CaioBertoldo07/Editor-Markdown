@@ -2,6 +2,7 @@ import { useState } from 'react';
 import DocumentList from '../components/DocumentList/DocumentList';
 import ThemeToggle from '../components/ThemeToggle/ThemeToggle';
 import MobileMenu from '../components/MobileMenu/MobileMenu';
+import UserMenu from '../components/UserMenu/UserMenu';
 import './Home.css';
 
 const Home = () => {
@@ -22,6 +23,7 @@ const Home = () => {
       <div className="home-content">
         <div className="home-header">
           <MobileMenu isOpen={isMobileMenuOpen} onToggle={toggleMobileMenu} />
+          <UserMenu />
           <ThemeToggle />
         </div>
         

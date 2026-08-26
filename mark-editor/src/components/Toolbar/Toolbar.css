@@ -6,7 +6,9 @@
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
-    overflow-x: auto;
+    overflow: visible;
+    position: relative;
+    z-index: 20;
 }
 
 /* Mobile */
@@ -18,6 +20,7 @@
 
 .toolbar-group {
     display: flex;
+    position: relative;
     gap: 6px;
     padding: 4px;
     background: var(--bg-secondary);
@@ -84,32 +87,78 @@
 
 /* Tooltip - esconder em mobile */
 .toolbar-btn::after {
-    content: attr(title);
+    content: attr(data-tooltip);
     position: absolute;
-    bottom: -32px;
+    top: calc(100% + 10px);
     left: 50%;
-    transform: translateX(-50%) scale(0.95);
-    background: var(--bg-main);
+    transform: translateX(-50%) translateY(-4px);
+    background: var(--bg-card);
     color: var(--text-primary);
     padding: 6px 10px;
     border-radius: 4px;
-    font-size: 11px;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.2;
     white-space: nowrap;
     pointer-events: none;
     opacity: 0;
-    transition: all 0.2s ease;
+    visibility: hidden;
+    transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
     border: 1px solid var(--border);
     box-shadow: var(--shadow);
     z-index: 1000;
 }
 
-.toolbar-btn:hover::after {
+/* Setinha do tooltip */
+.toolbar-btn::before {
+    content: '';
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%) translateY(-4px);
+    border: 5px solid transparent;
+    border-bottom-color: var(--border);
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+    z-index: 1000;
+}
+
+.toolbar-btn:hover::after,
+.toolbar-btn:focus-visible::after,
+.toolbar-btn:hover::before,
+.toolbar-btn:focus-visible::before {
     opacity: 1;
-    transform: translateX(-50%) scale(1);
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* Primeiro e ultimo botao: alinhar o tooltip para nao sair da tela */
+.toolbar-group .toolbar-btn:first-child::after {
+    left: 0;
+    transform: translateX(0) translateY(-4px);
+}
+
+.toolbar-group .toolbar-btn:first-child:hover::after,
+.toolbar-group .toolbar-btn:first-child:focus-visible::after {
+    transform: translateX(0) translateY(0);
+}
+
+.toolbar-group .toolbar-btn:last-child::after {
+    left: auto;
+    right: 0;
+    transform: translateX(0) translateY(-4px);
+}
+
+.toolbar-group .toolbar-btn:last-child:hover::after,
+.toolbar-group .toolbar-btn:last-child:focus-visible::after {
+    transform: translateX(0) translateY(0);
 }
 
 @media (max-width: 768px) {
-    .toolbar-btn::after {
+    .toolbar-btn::after,
+    .toolbar-btn::before {
         display: none;
     }
 }

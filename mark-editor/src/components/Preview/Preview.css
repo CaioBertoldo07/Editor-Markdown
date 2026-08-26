@@ -3,6 +3,97 @@
     background: var(--bg-card);
     overflow-y: auto;
     border-left: 1px solid var(--border);
+    position: relative;
+    min-width: 0;
+}
+
+/* Botao de tela cheia */
+.preview-fullscreen-btn {
+    position: sticky;
+    top: 12px;
+    float: right;
+    margin-right: 12px;
+    width: 34px;
+    height: 34px;
+    background: var(--bg-main);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    z-index: 5;
+}
+
+.preview-fullscreen-btn:hover {
+    background: var(--bg-secondary);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.preview-fullscreen-btn:active {
+    transform: scale(0.96);
+}
+
+.preview-fullscreen-btn::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background: var(--bg-main);
+    color: var(--text-primary);
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.15s ease, visibility 0.15s;
+}
+
+.preview-fullscreen-btn:hover::after,
+.preview-fullscreen-btn:focus-visible::after {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Modo tela cheia: o preview cobre a janela inteira */
+.preview-container.preview-fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    max-height: none;
+    border: none;
+    background: var(--bg-main);
+    animation: previewFullscreenIn 0.2s ease-out;
+}
+
+.preview-container.preview-fullscreen .preview-content {
+    max-width: 900px;
+    padding: 40px 32px 80px;
+}
+
+@media (max-width: 768px) {
+    .preview-container.preview-fullscreen .preview-content {
+        padding: 24px 16px 60px;
+    }
+}
+
+@keyframes previewFullscreenIn {
+    from {
+        opacity: 0;
+        transform: scale(0.99);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 /* Mobile: sem borda lateral */

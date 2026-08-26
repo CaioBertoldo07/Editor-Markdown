@@ -100,6 +100,18 @@
     font-size: 12px;
     color: var(--text-secondary);
     padding-left: 8px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.document-info-folder {
+    color: var(--accent);
+    flex-shrink: 0;
+}
+
+.document-info-sep {
+    opacity: 0.5;
 }
 
 /* Mobile */
@@ -119,5 +131,38 @@
 @media (max-width: 1024px) {
     .editor-workspace {
         flex-direction: column;
+    }
+}
+/* Botão de tela cheia no header */
+.fullscreen-toggle {
+    width: 40px;
+    height: 40px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.fullscreen-toggle:hover {
+    background: var(--bg-secondary);
+    border-color: var(--accent);
+    color: var(--accent);
+    transform: scale(1.05);
+}
+
+.fullscreen-toggle:active {
+    transform: scale(0.98);
+}
+
+/* Em telas pequenas o botão do próprio preview já resolve */
+@media (max-width: 480px) {
+    .fullscreen-toggle {
+        display: none;
     }
 }

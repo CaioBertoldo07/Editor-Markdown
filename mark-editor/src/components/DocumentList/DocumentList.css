@@ -40,6 +40,12 @@
     color: var(--text-primary);
 }
 
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
 .btn-create {
     width: 36px;
     height: 36px;
@@ -61,6 +67,189 @@
 
 .btn-create:active {
     transform: scale(0.98);
+}
+
+/* Botao de nova pasta: secundario em relacao ao de novo documento */
+.btn-create-folder {
+    width: 34px;
+    height: 34px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+}
+
+.btn-create-folder:hover {
+    background: var(--bg-main);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* ===== Pastas ===== */
+
+.folder {
+    margin-bottom: 4px;
+    border-radius: var(--radius);
+    border: 1px dashed transparent;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.folder.drop-target {
+    background: var(--accent-transparent);
+    border-color: var(--accent);
+}
+
+.folder-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    color: var(--text-primary);
+    user-select: none;
+    transition: background 0.15s ease;
+}
+
+.folder-header:hover {
+    background: var(--bg-card);
+}
+
+.folder-chevron {
+    flex-shrink: 0;
+    color: var(--text-secondary);
+    transition: transform 0.2s ease;
+}
+
+.folder-chevron.collapsed {
+    transform: rotate(-90deg);
+}
+
+.folder-icon {
+    flex-shrink: 0;
+    color: var(--accent);
+}
+
+.folder-name {
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.folder-name-input {
+    flex: 1;
+    min-width: 0;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    background: var(--bg-main);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    padding: 2px 6px;
+    outline: none;
+}
+
+.folder-count {
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: var(--bg-card);
+    border-radius: 10px;
+    padding: 1px 7px;
+}
+
+.folder-header:hover .folder-count {
+    background: var(--bg-secondary);
+}
+
+.folder-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.folder-header:hover .folder-actions {
+    opacity: 1;
+}
+
+@media (max-width: 768px) {
+    .folder-actions {
+        opacity: 0.6;
+    }
+}
+
+.folder-action {
+    width: 24px;
+    height: 24px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+
+.folder-action:hover {
+    background: var(--bg-secondary);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.folder-action-danger:hover {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
+.folder-documents {
+    padding-left: 14px;
+    margin-left: 12px;
+    border-left: 1px solid var(--border);
+    animation: fadeIn 0.2s ease-out;
+}
+
+.folder-empty {
+    padding: 10px 8px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    opacity: 0.6;
+    font-style: italic;
+}
+
+/* ===== Documentos fora de pastas ===== */
+
+.root-documents {
+    border-radius: var(--radius);
+    border: 1px dashed transparent;
+    padding: 2px;
+    min-height: 8px;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.root-documents.drop-target {
+    background: var(--accent-transparent);
+    border-color: var(--accent);
+}
+
+.section-label {
+    padding: 10px 10px 6px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    opacity: 0.7;
 }
 
 .documents-container {
@@ -98,6 +287,10 @@
     align-items: flex-start;
     position: relative;
     animation: fadeIn 0.3s ease-out;
+}
+
+.document-item.dragging {
+    opacity: 0.4;
 }
 
 .document-item:hover {

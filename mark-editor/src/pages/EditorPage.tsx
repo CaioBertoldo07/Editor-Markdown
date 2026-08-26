@@ -9,11 +9,13 @@ import Preview from '../components/Preview/Preview';
 import ThemeToggle from '../components/ThemeToggle/ThemeToggle';
 import SaveIndicator from '../components/SaveIndicator/SaveIndicator';
 import MobileMenu from '../components/MobileMenu/MobileMenu';
+import UserMenu from '../components/UserMenu/UserMenu';
+import FullScreenLoader from '../components/FullScreenLoader/FullScreenLoader';
 import './EditorPage.css';
 
 const EditorPage = () => {
   const { id } = useParams<{ id: string }>();
-  const { selectedDocument, selectDocument, updateDocument } = useDocuments();
+  const { selectedDocument, selectDocument, updateDocument, folders, isLoading } = useDocuments();
   const navigate = useNavigate();
   
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -22,9 +24,29 @@ const EditorPage = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [localContent, setLocalContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isPreviewFullscreen, setIsPreviewFullscreen] = useState(false);
   const [lastSaved, setLastSaved] = useState<string | null>(null);
   
   const debouncedContent = useDebounce(localContent, 800);
+
+  const togglePreviewFullscreen = useCallback(() => {
+    setIsPreviewFullscreen((prev) => !prev);
+  }, []);
+
+  // Atalhos da tela cheia: Ctrl+Shift+F alterna, Esc sai
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        setIsPreviewFullscreen((prev) => !prev);
+      } else if (e.key === 'Escape') {
+        setIsPreviewFullscreen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleSetInsertCallback = useCallback((callback: (before: string, after: string, placeholder?: string) => void) => {
     setInsertFormatCallback(() => callback);
@@ -39,10 +61,10 @@ const EditorPage = () => {
 
   // Redirecionar se não houver documento selecionado
   useEffect(() => {
-    if (!selectedDocument && id) {
+    if (!isLoading && !selectedDocument && id) {
       navigate('/', { replace: true });
     }
-  }, [selectedDocument, id, navigate]);
+  }, [isLoading, selectedDocument, id, navigate]);
 
   // Atualizar campos locais quando o documento mudar
   // CORRIGIDO: Agora observa o selectedDocument completo e seu conteúdo
@@ -115,6 +137,10 @@ const EditorPage = () => {
     });
   };
 
+  const currentFolder = selectedDocument?.folderId
+    ? folders.find((folder) => folder.id === selectedDocument.folderId) ?? null
+    : null;
+
   const handleInsertFormat = (before: string, after: string, placeholder?: string) => {
     if (insertFormatCallback) {
       insertFormatCallback(before, after, placeholder);
@@ -130,29 +156,7 @@ const EditorPage = () => {
   };
 
   if (!selectedDocument) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        height: '100vh',
-        color: 'var(--text-primary)',
-        background: 'var(--bg-main)'
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ 
-            width: '40px', 
-            height: '40px', 
-            border: '3px solid var(--border)',
-            borderTopColor: 'var(--accent)',
-            borderRadius: '50%',
-            animation: 'spin 0.8s linear infinite',
-            margin: '0 auto 16px'
-          }}></div>
-          <p>Carregando documento...</p>
-        </div>
-      </div>
-    );
+    return <FullScreenLoader message="Carregando documento..." />;
   }
 
   return (
@@ -180,12 +184,35 @@ const EditorPage = () => {
               </h1>
             )}
             <span className="document-info">
+              {currentFolder && (
+                <>
+                  <svg className="document-info-folder" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2z"></path>
+                  </svg>
+                  {currentFolder.name}
+                  <span className="document-info-sep">·</span>
+                </>
+              )}
               Atualizado {formatDate(selectedDocument.updatedAt)}
             </span>
           </div>
 
           <div className="header-right">
             <SaveIndicator isSaving={isSaving} lastSaved={lastSaved} />
+            <UserMenu />
+            <button
+              className="fullscreen-toggle"
+              onClick={togglePreviewFullscreen}
+              aria-label="Visualizar em tela cheia (Ctrl+Shift+F)"
+              title="Visualizar em tela cheia (Ctrl+Shift+F)"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M8 3H5a2 2 0 0 0-2 2v3"></path>
+                <path d="M21 8V5a2 2 0 0 0-2-2h-3"></path>
+                <path d="M3 16v3a2 2 0 0 0 2 2h3"></path>
+                <path d="M16 21h3a2 2 0 0 0 2-2v-3"></path>
+              </svg>
+            </button>
             <ThemeToggle />
           </div>
         </div>
@@ -198,7 +225,11 @@ const EditorPage = () => {
             onChange={handleContentChange}
             onInsertFormat={handleSetInsertCallback}
           />
-          <Preview content={localContent} />
+          <Preview
+            content={localContent}
+            isFullscreen={isPreviewFullscreen}
+            onToggleFullscreen={togglePreviewFullscreen}
+          />
         </div>
       </div>
     </div>

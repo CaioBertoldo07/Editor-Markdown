@@ -125,7 +125,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ onInsert }) => {
             key={tool.id}
             className="toolbar-btn"
             onClick={() => onInsert(tool.before, tool.after)}
-            title={`${tool.label} (${tool.shortcut})`}
+            aria-label={`${tool.label} (${tool.shortcut})`}
+            data-tooltip={`${tool.label} (${tool.shortcut})`}
           >
             {tool.icon}
           </button>
