@@ -1,5 +1,18 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useMemo, memo } from 'react';
 import './Editor.css';
+
+/**
+ * Uma linha do espelho de numeração. Digitar troca o conteúdo de uma linha só,
+ * mas o componente inteiro re-renderiza — sem o memo, um documento de milhares
+ * de linhas reconcilia todas elas a cada tecla.
+ */
+const MirrorLine = memo(({ number, text }: { number: number; text: string }) => (
+  <div className="editor-line">
+    <span className="editor-line-number">{number}</span>
+    {/* Linha vazia não gera caixa de linha; o espaço zero-width gera. */}
+    {text || '​'}
+  </div>
+));
 
 interface EditorProps {
   content: string;
@@ -9,6 +22,23 @@ interface EditorProps {
 
 const Editor: React.FC<EditorProps> = ({ content, onChange, onInsertFormat }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const linesRef = useRef<HTMLDivElement>(null);
+
+  const lines = useMemo(() => content.split('\n'), [content]);
+
+  // Largura da calha: cresce junto com a quantidade de dígitos, com um mínimo
+  // de 2 para não ficar apertada em documentos curtos.
+  const digits = Math.max(2, String(lines.length).length);
+
+  /** A numeração vive numa camada separada, então precisa rolar junto. */
+  const syncScroll = () => {
+    if (linesRef.current && textareaRef.current) {
+      linesRef.current.scrollTop = textareaRef.current.scrollTop;
+    }
+  };
+
+  // Trocar de documento reposiciona o textarea sem disparar onScroll.
+  useEffect(syncScroll, [content]);
 
   useEffect(() => {
     if (onInsertFormat) {
@@ -105,13 +135,32 @@ const Editor: React.FC<EditorProps> = ({ content, onChange, onInsertFormat }) =>
   };
 
   return (
-    <div className="editor-container">
+    <div
+      className="editor-container"
+      style={{ '--editor-digits': digits } as React.CSSProperties}
+    >
+      <div className="editor-gutter-bg" />
+
+      {/*
+        Espelho do texto, sobreposto ao textarea e invisível (color: transparent).
+        Ele existe só para o navegador calcular onde cada linha começa: como usa
+        a mesma fonte e a mesma largura, uma linha longa quebra no mesmo ponto
+        que no textarea, e o número fica alinhado ao topo dela — sem nenhuma
+        medição manual.
+      */}
+      <div className="editor-lines" ref={linesRef} aria-hidden="true">
+        {lines.map((line, index) => (
+          <MirrorLine key={index} number={index + 1} text={line} />
+        ))}
+      </div>
+
       <textarea
         ref={textareaRef}
         className="editor-textarea"
         value={content}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={handleKeyDown}
+        onScroll={syncScroll}
         placeholder="Comece a escrever em Markdown..."
         spellCheck={false}
       />

@@ -1,30 +1,92 @@
 .editor-container {
     flex: 1;
     display: flex;
-    flex-direction: column;
+    position: relative;
     background: var(--bg-secondary);
     overflow: hidden;
+
+    /*
+      As métricas de texto ficam aqui, e tanto o textarea quanto o espelho de
+      numeração herdam. É isso que garante que os dois quebrem as linhas longas
+      exatamente no mesmo ponto — se divergirem, os números desalinham.
+    */
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 15px;
+    line-height: 1.7;
+    letter-spacing: 0.3px;
+
+    /* 1ch = largura do "0" na fonte monoespaçada, então a calha acompanha
+       a quantidade de dígitos sem número mágico. */
+    --editor-gutter: calc(var(--editor-digits, 2) * 1ch + 28px);
+    --editor-gutter-gap: 16px;
+    --editor-pad-y: 32px;
+    --editor-pad-right: 32px;
+    /* Precisa bater com a largura definida em ::-webkit-scrollbar abaixo. */
+    --editor-scrollbar: 8px;
+}
+
+.editor-gutter-bg {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: var(--editor-gutter);
+    background: var(--bg-main);
+    border-right: 1px solid var(--border);
 }
 
 .editor-textarea {
     flex: 1;
     width: 100%;
-    padding: 32px;
-    background: var(--bg-secondary);
+    padding: var(--editor-pad-y) var(--editor-pad-right) var(--editor-pad-y)
+        calc(var(--editor-gutter) + var(--editor-gutter-gap));
+    background: transparent;
     color: var(--text-primary);
     border: none;
     outline: none;
     resize: none;
-    font-family: 'JetBrains Mono', 'Fira Code', monospace;
-    font-size: 15px;
-    line-height: 1.7;
-    letter-spacing: 0.3px;
-    overflow-y: auto;
+    font: inherit;
+    letter-spacing: inherit;
+    /* `scroll` em vez de `auto`: a barra reserva espaço sempre, então a largura
+       útil do texto não muda quando o documento passa a caber ou não na tela —
+       o espelho continua batendo. */
+    overflow-y: scroll;
+    position: relative;
+    z-index: 1;
 }
 
 .editor-textarea::placeholder {
     color: var(--text-secondary);
     opacity: 0.5;
+}
+
+.editor-lines {
+    position: absolute;
+    inset: 0;
+    /* À direita, o mesmo que o textarea perde entre padding e barra de rolagem. */
+    padding: var(--editor-pad-y) calc(var(--editor-pad-right) + var(--editor-scrollbar))
+        var(--editor-pad-y) calc(var(--editor-gutter) + var(--editor-gutter-gap));
+    /* Mesma quebra de linha que o textarea usa por padrão. */
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    overflow: hidden;
+    /* Só os números aparecem; o texto espelhado serve apenas de régua. */
+    color: transparent;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.editor-line {
+    position: relative;
+}
+
+.editor-line-number {
+    position: absolute;
+    /* Borda direita do número recuada da divisória da calha. */
+    right: calc(100% + var(--editor-gutter-gap) + 10px);
+    color: var(--text-secondary);
+    opacity: 0.5;
+    user-select: none;
 }
 
 .editor-textarea::-webkit-scrollbar {
@@ -42,4 +104,13 @@
 
 .editor-textarea::-webkit-scrollbar-thumb:hover {
     background: #2a2a2a;
+}
+
+/* Mobile: a tela é estreita, então a calha encolhe junto com as margens. */
+@media (max-width: 768px) {
+    .editor-container {
+        --editor-gutter-gap: 10px;
+        --editor-pad-y: 20px;
+        --editor-pad-right: 16px;
+    }
 }
