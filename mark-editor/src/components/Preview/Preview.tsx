@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import type { Components } from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import Mermaid from '../Mermaid/Mermaid';
 import './Preview.css';
 
@@ -22,6 +23,12 @@ function mermaidSource(children: React.ReactNode): string | null {
 
   return String(content ?? '');
 }
+
+/**
+ * Tabelas, ~riscado~, listas de tarefas e links automáticos são GitHub
+ * Flavored Markdown, que o react-markdown não traz por padrão.
+ */
+const remarkPlugins = [remarkGfm];
 
 const markdownComponents: Components = {
   pre({ children, ...props }) {
@@ -67,7 +74,9 @@ const Preview: React.FC<PreviewProps> = ({ content, isFullscreen = false, onTogg
 
       <div className="preview-content">
         {content ? (
-          <ReactMarkdown components={markdownComponents}>{content}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={remarkPlugins} components={markdownComponents}>
+            {content}
+          </ReactMarkdown>
         ) : (
           <div className="preview-empty">
             <p>O preview aparecerá aqui</p>

@@ -337,3 +337,20 @@
     background: var(--bg-secondary);
     font-weight: 600;
 }
+/* Listas de tarefas do GFM (- [ ] / - [x]): o checkbox substitui o marcador. */
+.preview-content .contains-task-list {
+    list-style: none;
+    padding-left: 4px;
+}
+
+.preview-content .task-list-item {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.preview-content .task-list-item input[type="checkbox"] {
+    accent-color: var(--accent);
+    /* Vem desabilitado do react-markdown; o cursor padrão sugeriria clique. */
+    cursor: default;
+}
