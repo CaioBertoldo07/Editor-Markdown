@@ -1,4 +1,5 @@
 import type { Document, Folder } from '../types/document';
+import type { SortMode } from './sorting';
 
 /**
  * Leitura dos dados que ficaram no navegador antes da sincronização com o Neon.
@@ -10,6 +11,7 @@ import type { Document, Folder } from '../types/document';
 const STORAGE_KEY = 'markdown-editor-documents';
 const FOLDERS_KEY = 'markdown-editor-folders';
 const COLLAPSED_KEY = 'markdown-editor-collapsed-folders';
+const SORT_KEY = 'markdown-editor-sort-mode';
 
 export const loadDocuments = (): Document[] => {
   try {
@@ -52,5 +54,22 @@ export const saveCollapsedFolders = (ids: string[]): void => {
     localStorage.setItem(COLLAPSED_KEY, JSON.stringify(ids));
   } catch (error) {
     console.error('Erro ao salvar estado das pastas:', error);
+  }
+};
+
+/** Como o usuário prefere ver a lista. Preferência local, como as recolhidas. */
+export const loadSortMode = (): SortMode => {
+  try {
+    return localStorage.getItem(SORT_KEY) === 'recent' ? 'recent' : 'name';
+  } catch {
+    return 'name';
+  }
+};
+
+export const saveSortMode = (mode: SortMode): void => {
+  try {
+    localStorage.setItem(SORT_KEY, mode);
+  } catch (error) {
+    console.error('Erro ao salvar a ordenação:', error);
   }
 };

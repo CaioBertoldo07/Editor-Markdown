@@ -2,7 +2,14 @@ import { useState, useEffect } from 'react';
 import { useDocuments } from '../../context/DocumentsContext';
 import { useNavigate } from 'react-router-dom';
 import type { Document, Folder } from '../../types/document';
-import { loadCollapsedFolders, saveCollapsedFolders } from '../../utils/localStorage';
+import {
+  loadCollapsedFolders,
+  saveCollapsedFolders,
+  loadSortMode,
+  saveSortMode,
+} from '../../utils/localStorage';
+import { sortDocuments, sortFolders } from '../../utils/sorting';
+import type { SortMode } from '../../utils/sorting';
 import { downloadDocument, downloadFolderAsZip } from '../../utils/download';
 import AppIcon from '../AppIcon/AppIcon';
 import ConfirmModal from '../ConfirmModal/ConfirmModal';
@@ -46,14 +53,26 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
   // Pasta cujo zip está sendo gerado; o JSZip é baixado sob demanda, então a
   // primeira vez tem uma espera perceptível.
   const [zippingFolderId, setZippingFolderId] = useState<string | null>(null);
+  const [sortMode, setSortMode] = useState<SortMode>(() => loadSortMode());
 
   useEffect(() => {
     saveCollapsedFolders(collapsedFolders);
   }, [collapsedFolders]);
 
-  const rootDocuments = documents.filter((doc) => !doc.folderId);
+  useEffect(() => {
+    saveSortMode(sortMode);
+  }, [sortMode]);
+
+  const sortedFolders = sortFolders(folders);
+  const rootDocuments = sortDocuments(
+    documents.filter((doc) => !doc.folderId),
+    sortMode
+  );
   const documentsInFolder = (folderId: string) =>
-    documents.filter((doc) => doc.folderId === folderId);
+    sortDocuments(
+      documents.filter((doc) => doc.folderId === folderId),
+      sortMode
+    );
 
   const isCollapsed = (folderId: string) => collapsedFolders.includes(folderId);
 
@@ -292,6 +311,18 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
           </div>
         </div>
 
+        <div className="document-list-sort">
+          <label htmlFor="sort-mode">Ordenar por</label>
+          <select
+            id="sort-mode"
+            value={sortMode}
+            onChange={(e) => setSortMode(e.target.value as SortMode)}
+          >
+            <option value="name">Nome</option>
+            <option value="recent">Modificado recentemente</option>
+          </select>
+        </div>
+
         <div className="documents-container">
           {isLoading ? (
             <div className="empty-state">
@@ -304,7 +335,7 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
             </div>
           ) : (
             <>
-              {folders.map((folder) => {
+              {sortedFolders.map((folder) => {
                 const folderDocs = documentsInFolder(folder.id);
                 const collapsed = isCollapsed(folder.id);
 
