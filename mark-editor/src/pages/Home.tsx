@@ -3,9 +3,13 @@ import DocumentList from '../components/DocumentList/DocumentList';
 import ThemeToggle from '../components/ThemeToggle/ThemeToggle';
 import MobileMenu from '../components/MobileMenu/MobileMenu';
 import UserMenu from '../components/UserMenu/UserMenu';
+import AppIcon from '../components/AppIcon/AppIcon';
+import { useAuth } from '../context/AuthContext';
+import { greetingFor, displayName } from '../utils/greeting';
 import './Home.css';
 
 const Home = () => {
+  const { user } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const toggleMobileMenu = () => {
@@ -28,7 +32,11 @@ const Home = () => {
         </div>
         
         <div className="welcome-message">
-          <h1>📝 Editor Markdown</h1>
+          <AppIcon className="welcome-logo" size={96} />
+          <p className="welcome-greeting">
+            {greetingFor()}, {displayName(user)}!
+          </p>
+          <h1>Editor Markdown</h1>
           <p>Selecione um documento na lista ou crie um novo para começar</p>
           
           <div className="features">

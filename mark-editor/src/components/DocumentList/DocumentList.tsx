@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useDocuments } from '../../context/DocumentsContext';
 import { useNavigate } from 'react-router-dom';
-import type { Document } from '../../types/document';
+import type { Document, Folder } from '../../types/document';
 import { loadCollapsedFolders, saveCollapsedFolders } from '../../utils/localStorage';
+import { downloadDocument, downloadFolderAsZip } from '../../utils/download';
+import AppIcon from '../AppIcon/AppIcon';
 import ConfirmModal from '../ConfirmModal/ConfirmModal';
 import './DocumentList.css';
 
@@ -41,6 +43,9 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
   const [folderNameInput, setFolderNameInput] = useState('');
   const [draggedDocId, setDraggedDocId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTarget>(undefined);
+  // Pasta cujo zip está sendo gerado; o JSZip é baixado sob demanda, então a
+  // primeira vez tem uma espera perceptível.
+  const [zippingFolderId, setZippingFolderId] = useState<string | null>(null);
 
   useEffect(() => {
     saveCollapsedFolders(collapsedFolders);
@@ -160,6 +165,24 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
     handleDragEnd();
   };
 
+  // --- Download ---
+
+  const handleDownloadFolder = async (e: React.MouseEvent, folder: Folder) => {
+    e.stopPropagation();
+
+    const docs = documentsInFolder(folder.id);
+    if (docs.length === 0) return;
+
+    setZippingFolderId(folder.id);
+    try {
+      await downloadFolderAsZip(folder, docs);
+    } catch (err) {
+      console.error('Erro ao gerar o zip da pasta:', err);
+    } finally {
+      setZippingFolderId(null);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -201,19 +224,36 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
         </div>
       </div>
 
-      <button
-        className="btn-delete"
-        onClick={(e) => {
-          e.stopPropagation();
-          setDeleteTarget({ kind: 'document', id: doc.id, name: doc.title });
-        }}
-        title="Excluir documento"
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <polyline points="3 6 5 6 21 6"></polyline>
-          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-        </svg>
-      </button>
+      <div className="document-actions">
+        <button
+          className="btn-download"
+          onClick={(e) => {
+            e.stopPropagation();
+            downloadDocument(doc);
+          }}
+          title="Baixar como .md"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+        </button>
+
+        <button
+          className="btn-delete"
+          onClick={(e) => {
+            e.stopPropagation();
+            setDeleteTarget({ kind: 'document', id: doc.id, name: doc.title });
+          }}
+          title="Excluir documento"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+        </button>
+      </div>
     </div>
   );
 
@@ -223,7 +263,10 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
 
       <div className={`document-list ${isOpen ? 'mobile-open' : ''}`}>
         <div className="document-list-header">
-          <h2>Documentos</h2>
+          <div className="document-list-brand">
+            <AppIcon className="document-list-logo" size={28} />
+            <h2>Documentos</h2>
+          </div>
           <div className="header-actions">
             <button
               className="btn-create btn-create-folder"
@@ -324,6 +367,30 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
                             <line x1="12" y1="5" x2="12" y2="19"></line>
                             <line x1="5" y1="12" x2="19" y2="12"></line>
                           </svg>
+                        </button>
+                        <button
+                          className="folder-action"
+                          onClick={(e) => handleDownloadFolder(e, folder)}
+                          disabled={folderDocs.length === 0 || zippingFolderId === folder.id}
+                          title={
+                            folderDocs.length === 0
+                              ? 'Pasta vazia'
+                              : zippingFolderId === folder.id
+                                ? 'Gerando o zip...'
+                                : `Baixar ${folderDocs.length} documento(s) em .zip`
+                          }
+                        >
+                          {zippingFolderId === folder.id ? (
+                            <svg className="folder-action-spinner" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                              <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+                            </svg>
+                          ) : (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                              <polyline points="7 10 12 15 17 10"></polyline>
+                              <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                          )}
                         </button>
                         <button
                           className="folder-action"

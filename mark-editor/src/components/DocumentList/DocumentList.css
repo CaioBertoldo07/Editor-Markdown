@@ -34,6 +34,21 @@
     align-items: center;
 }
 
+.document-list-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.document-list-logo {
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
 .document-list-header h2 {
     font-size: 18px;
     font-weight: 600;
@@ -206,6 +221,27 @@
     color: var(--accent);
 }
 
+.folder-action:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.folder-action:disabled:hover {
+    background: transparent;
+    border-color: transparent;
+    color: var(--text-secondary);
+}
+
+.folder-action-spinner {
+    animation: folder-action-spin 0.7s linear infinite;
+}
+
+@keyframes folder-action-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 .folder-action-danger:hover {
     background: rgba(239, 68, 68, 0.1);
     border-color: #ef4444;
@@ -342,6 +378,39 @@
     opacity: 0.7;
 }
 
+.document-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.btn-download {
+    width: 28px;
+    height: 28px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.document-item:hover .btn-download {
+    opacity: 1;
+}
+
+.btn-download:hover {
+    background: var(--accent-transparent);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
 .btn-delete {
     width: 28px;
     height: 28px;
@@ -362,13 +431,15 @@
     opacity: 1;
 }
 
-/* Mobile: botão delete sempre visível */
+/* Mobile: botões sempre visíveis, já que não há hover */
 @media (max-width: 768px) {
-    .btn-delete {
+    .btn-delete,
+    .btn-download {
         opacity: 0.6;
     }
 
-    .document-item:active .btn-delete {
+    .document-item:active .btn-delete,
+    .document-item:active .btn-download {
         opacity: 1;
     }
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import ThemeToggle from '../components/ThemeToggle/ThemeToggle';
+import AppIcon from '../components/AppIcon/AppIcon';
 import './Login.css';
 
 const Login = () => {
@@ -47,7 +48,7 @@ const Login = () => {
 
       <form className="login-card" onSubmit={handleSubmit}>
         <div className="login-brand">
-          <span className="login-logo">📝</span>
+          <AppIcon className="login-logo" size={72} />
           <h1>Editor Markdown</h1>
           <p>
             {mode === 'signin'

@@ -44,6 +44,34 @@
     }
 }
 
+.welcome-logo {
+    width: 96px;
+    height: 96px;
+    border-radius: 20px;
+    object-fit: contain;
+    margin-bottom: 20px;
+}
+
+/* Regra mais especifica que `.welcome-message>p`, que empurra 60px embaixo. */
+.welcome-message>p.welcome-greeting {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--accent-light);
+    margin-bottom: 4px;
+}
+
+@media (max-width: 768px) {
+    .welcome-logo {
+        width: 72px;
+        height: 72px;
+        margin-bottom: 14px;
+    }
+
+    .welcome-message>p.welcome-greeting {
+        font-size: 17px;
+    }
+}
+
 .welcome-message h1 {
     font-size: 48px;
     font-weight: 700;
