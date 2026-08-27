@@ -1,5 +1,35 @@
+import React from 'react';
 import ReactMarkdown from 'react-markdown';
+import type { Components } from 'react-markdown';
+import Mermaid from '../Mermaid/Mermaid';
 import './Preview.css';
+
+/**
+ * Um bloco ```mermaid chega aqui como <pre><code class="language-mermaid">.
+ * Trocamos no <pre> e não no <code> porque o SVG do diagrama é conteúdo de
+ * bloco, e um <div> dentro de <pre> seria HTML inválido.
+ */
+function mermaidSource(children: React.ReactNode): string | null {
+  const code = React.Children.toArray(children)[0];
+  if (!React.isValidElement(code)) return null;
+
+  const { className, children: content } = code.props as {
+    className?: string;
+    children?: React.ReactNode;
+  };
+
+  if (!className?.split(' ').includes('language-mermaid')) return null;
+
+  return String(content ?? '');
+}
+
+const markdownComponents: Components = {
+  pre({ children, ...props }) {
+    const chart = mermaidSource(children);
+    if (chart === null) return <pre {...props}>{children}</pre>;
+    return <Mermaid chart={chart} />;
+  },
+};
 
 interface PreviewProps {
   content: string;
@@ -37,7 +67,7 @@ const Preview: React.FC<PreviewProps> = ({ content, isFullscreen = false, onTogg
 
       <div className="preview-content">
         {content ? (
-          <ReactMarkdown>{content}</ReactMarkdown>
+          <ReactMarkdown components={markdownComponents}>{content}</ReactMarkdown>
         ) : (
           <div className="preview-empty">
             <p>O preview aparecerá aqui</p>

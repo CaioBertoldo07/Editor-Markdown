@@ -1,0 +1,57 @@
+.mermaid-diagram {
+    display: flex;
+    justify-content: center;
+    margin: 20px 0;
+    padding: 16px;
+    background: var(--bg-main);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    /* Diagramas largos rolam dentro da caixa em vez de esticar o preview. */
+    overflow-x: auto;
+}
+
+.mermaid-diagram svg {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Desenho válido anterior, enquanto a edição atual está com sintaxe quebrada. */
+.mermaid-diagram-stale {
+    opacity: 0.45;
+    transition: opacity 0.2s ease;
+}
+
+.mermaid-loading {
+    margin: 20px 0;
+    padding: 24px;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 14px;
+    background: var(--bg-main);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.mermaid-error {
+    margin: 20px 0;
+    padding: 12px 16px;
+    background: var(--bg-main);
+    border: 1px solid var(--border);
+    border-left: 3px solid #EF4444;
+    border-radius: var(--radius);
+}
+
+.mermaid-error-title {
+    display: block;
+    margin-bottom: 8px;
+    color: #EF4444;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.mermaid-error pre {
+    margin: 0;
+    overflow-x: auto;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
