@@ -64,6 +64,8 @@ const Home = () => {
               <p>Escolha o tema que preferir</p>
             </div>
           </div>
+
+          <p className="welcome-credit">Feito por Caio Bertoldo</p>
         </div>
       </div>
     </div>

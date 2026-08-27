@@ -107,6 +107,8 @@ const Login = () => {
           </button>
         </p>
       </form>
+
+      <p className="login-credit">Feito por Caio Bertoldo</p>
     </div>
   );
 };

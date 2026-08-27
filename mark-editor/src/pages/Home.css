@@ -175,3 +175,11 @@
         font-size: 13px;
     }
 }
+/* Mais especifica que `.welcome-message>p`, que empurra 60px embaixo. */
+.welcome-message>p.welcome-credit {
+    margin-top: 40px;
+    margin-bottom: 0;
+    font-size: 12px;
+    color: var(--text-secondary);
+    opacity: 0.7;
+}
