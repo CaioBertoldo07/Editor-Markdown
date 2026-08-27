@@ -1,18 +1,37 @@
 import { useRef, useEffect, useMemo, memo } from 'react';
+import { computeFenceFlags, tokenizeLine } from '../../utils/markdownHighlight';
 import './Editor.css';
 
+interface MirrorLineProps {
+  number: number;
+  text: string;
+  insideFence: boolean;
+}
+
 /**
- * Uma linha do espelho de numeração. Digitar troca o conteúdo de uma linha só,
- * mas o componente inteiro re-renderiza — sem o memo, um documento de milhares
- * de linhas reconcilia todas elas a cada tecla.
+ * Uma linha do espelho: o número na calha e o texto já colorido.
+ *
+ * As props são todas primitivas de propósito — passar o array de tokens pronto
+ * quebraria o memo, porque seria um array novo a cada render. Tokenizar uma
+ * linha é barato; reconciliar milhares delas a cada tecla não é.
  */
-const MirrorLine = memo(({ number, text }: { number: number; text: string }) => (
-  <div className="editor-line">
-    <span className="editor-line-number">{number}</span>
-    {/* Linha vazia não gera caixa de linha; o espaço zero-width gera. */}
-    {text || '​'}
-  </div>
-));
+const MirrorLine = memo(({ number, text, insideFence }: MirrorLineProps) => {
+  const tokens = tokenizeLine(text, insideFence);
+
+  return (
+    <div className="editor-line">
+      <span className="editor-line-number">{number}</span>
+      {/* Linha vazia não gera caixa de linha; o espaço zero-width gera. */}
+      {tokens.length === 0
+        ? '​'
+        : tokens.map((token, i) => (
+            <span key={i} className={token.kind ? `md-${token.kind}` : undefined}>
+              {token.text}
+            </span>
+          ))}
+    </div>
+  );
+});
 
 interface EditorProps {
   content: string;
@@ -25,6 +44,9 @@ const Editor: React.FC<EditorProps> = ({ content, onChange, onInsertFormat }) =>
   const linesRef = useRef<HTMLDivElement>(null);
 
   const lines = useMemo(() => content.split('\n'), [content]);
+
+  // Único estado que atravessa linhas: se a linha está dentro de ``` ou ~~~.
+  const fenceFlags = useMemo(() => computeFenceFlags(lines), [lines]);
 
   // Largura da calha: cresce junto com a quantidade de dígitos, com um mínimo
   // de 2 para não ficar apertada em documentos curtos.
@@ -150,7 +172,12 @@ const Editor: React.FC<EditorProps> = ({ content, onChange, onInsertFormat }) =>
       */}
       <div className="editor-lines" ref={linesRef} aria-hidden="true">
         {lines.map((line, index) => (
-          <MirrorLine key={index} number={index + 1} text={line} />
+          <MirrorLine
+            key={index}
+            number={index + 1}
+            text={line}
+            insideFence={fenceFlags[index]}
+          />
         ))}
       </div>
 

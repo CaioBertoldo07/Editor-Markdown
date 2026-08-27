@@ -41,7 +41,12 @@
     padding: var(--editor-pad-y) var(--editor-pad-right) var(--editor-pad-y)
         calc(var(--editor-gutter) + var(--editor-gutter-gap));
     background: transparent;
-    color: var(--text-primary);
+    /*
+      O texto real fica invisivel: quem o usuario le e a camada colorida
+      sobreposta. O cursor precisa da cor de volta, senao some junto.
+    */
+    color: transparent;
+    caret-color: var(--text-primary);
     border: none;
     outline: none;
     resize: none;
@@ -70,10 +75,17 @@
     white-space: pre-wrap;
     overflow-wrap: break-word;
     overflow: hidden;
-    /* Só os números aparecem; o texto espelhado serve apenas de régua. */
-    color: transparent;
+    color: var(--text-primary);
     pointer-events: none;
     z-index: 2;
+    /*
+      Se a fonte monoespacada resolvida nao tiver negrito/italico reais, o
+      navegador sintetiza — e o negrito sintetico pode ficar mais largo que o
+      normal. Isso faria a camada quebrar as linhas em ponto diferente do
+      textarea e desalinhar tudo. Sem sintese, o pior caso e o negrito nao
+      parecer negrito; o alinhamento fica intacto.
+    */
+    font-synthesis: none;
 }
 
 .editor-line {
@@ -113,4 +125,77 @@
         --editor-pad-y: 20px;
         --editor-pad-right: 16px;
     }
+}
+
+/* ---- Cores da sintaxe ---------------------------------------------------
+   Definidas como variaveis no container para os dois temas ficarem lado a
+   lado, em vez de espalhar um bloco por tema em cada token.              */
+
+.editor-container {
+    --md-heading: #6BA5FF;
+    --md-bold: #E6C07B;
+    --md-italic: #C591E0;
+    --md-code: #E08A6B;
+    --md-link: #4FB6C4;
+    --md-marker: #7FB88A;
+    --md-muted: #7A7A7A;
+}
+
+:root[data-theme="light"] .editor-container {
+    --md-heading: #1D4ED8;
+    --md-bold: #9A6700;
+    --md-italic: #8250DF;
+    --md-code: #B4471F;
+    --md-link: #0F766E;
+    --md-marker: #2F7A3E;
+    --md-muted: #8B8B8B;
+}
+
+.md-heading {
+    color: var(--md-heading);
+    font-weight: 700;
+}
+
+.md-bold {
+    color: var(--md-bold);
+    font-weight: 700;
+}
+
+.md-italic {
+    color: var(--md-italic);
+    font-style: italic;
+}
+
+.md-code,
+.md-code-block {
+    color: var(--md-code);
+}
+
+.md-fence {
+    color: var(--md-muted);
+}
+
+.md-link,
+.md-url {
+    color: var(--md-link);
+}
+
+.md-marker,
+.md-table {
+    color: var(--md-marker);
+}
+
+.md-rule {
+    color: var(--md-muted);
+}
+
+.md-strike {
+    color: var(--md-muted);
+    text-decoration: line-through;
+}
+
+/* A selecao e pintada na camada do textarea, atras do texto colorido; um tom
+   solido esconderia as cores, entao fica translucida. */
+.editor-textarea::selection {
+    background: rgba(59, 130, 246, 0.32);
 }
