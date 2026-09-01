@@ -12,6 +12,15 @@ const STORAGE_KEY = 'markdown-editor-documents';
 const FOLDERS_KEY = 'markdown-editor-folders';
 const COLLAPSED_KEY = 'markdown-editor-collapsed-folders';
 const SORT_KEY = 'markdown-editor-sort-mode';
+const SIDEBAR_WIDTH_KEY = 'markdown-editor-sidebar-width';
+
+export const DEFAULT_SIDEBAR_WIDTH = 280;
+/** Abaixo disso o nome do documento não cabe; acima, sobra pouco para o editor. */
+export const MIN_SIDEBAR_WIDTH = 200;
+export const MAX_SIDEBAR_WIDTH = 560;
+
+export const clampSidebarWidth = (width: number): number =>
+  Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, Math.round(width)));
 
 export const loadDocuments = (): Document[] => {
   try {
@@ -71,5 +80,24 @@ export const saveSortMode = (mode: SortMode): void => {
     localStorage.setItem(SORT_KEY, mode);
   } catch (error) {
     console.error('Erro ao salvar a ordenação:', error);
+  }
+};
+
+/** Largura da barra lateral, em pixels. Preferência de cada dispositivo. */
+export const loadSidebarWidth = (): number => {
+  try {
+    const stored = Number(localStorage.getItem(SIDEBAR_WIDTH_KEY));
+    // Número inválido (chave ausente, valor de outra versão) cai no padrão.
+    return Number.isFinite(stored) && stored > 0 ? clampSidebarWidth(stored) : DEFAULT_SIDEBAR_WIDTH;
+  } catch {
+    return DEFAULT_SIDEBAR_WIDTH;
+  }
+};
+
+export const saveSidebarWidth = (width: number): void => {
+  try {
+    localStorage.setItem(SIDEBAR_WIDTH_KEY, String(width));
+  } catch (error) {
+    console.error('Erro ao salvar a largura da barra lateral:', error);
   }
 };

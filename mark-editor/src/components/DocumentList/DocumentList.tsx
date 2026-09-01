@@ -7,6 +7,12 @@ import {
   saveCollapsedFolders,
   loadSortMode,
   saveSortMode,
+  loadSidebarWidth,
+  saveSidebarWidth,
+  clampSidebarWidth,
+  DEFAULT_SIDEBAR_WIDTH,
+  MIN_SIDEBAR_WIDTH,
+  MAX_SIDEBAR_WIDTH,
 } from '../../utils/localStorage';
 import { sortDocuments, sortFolders } from '../../utils/sorting';
 import type { SortMode } from '../../utils/sorting';
@@ -65,6 +71,13 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
   const [importSummary, setImportSummary] = useState<ImportSummary | null>(null);
   // true enquanto o usuário arrasta arquivos de fora do navegador sobre a lista
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
+  // Largura da barra, ajustável pela alça da borda direita
+  const [sidebarWidth, setSidebarWidth] = useState(() => loadSidebarWidth());
+  const [isResizing, setIsResizing] = useState(false);
+  // Posição do ponteiro e largura no início do arrasto, para medir o
+  // deslocamento — acompanhar o clientX direto faria a barra pular para o
+  // ponteiro no primeiro movimento.
+  const resizeStartRef = useRef({ x: 0, width: DEFAULT_SIDEBAR_WIDTH });
 
   useEffect(() => {
     saveCollapsedFolders(collapsedFolders);
@@ -73,6 +86,30 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
   useEffect(() => {
     saveSortMode(sortMode);
   }, [sortMode]);
+
+  // Só grava quando o arrasto termina, senão seria uma escrita por pixel.
+  useEffect(() => {
+    if (isResizing) return;
+    saveSidebarWidth(sidebarWidth);
+  }, [sidebarWidth, isResizing]);
+
+  /**
+   * Enquanto arrasta, o cursor de redimensionar vale para a página inteira e a
+   * seleção de texto fica desligada — sem isso, passar o ponteiro sobre o
+   * editor troca o cursor e seleciona o texto por onde ele passa.
+   */
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const { cursor, userSelect } = document.body.style;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    return () => {
+      document.body.style.cursor = cursor;
+      document.body.style.userSelect = userSelect;
+    };
+  }, [isResizing]);
 
   // Um arquivo solto fora das áreas de importação faz o navegador abrir o
   // arquivo e trocar o app pela tela dele. Cancelar o comportamento padrão
@@ -318,6 +355,48 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
     }
   };
 
+  // --- Largura da barra ---
+
+  const handleResizeStart = (e: React.PointerEvent<HTMLDivElement>) => {
+    // Só o botão principal; o do meio cola texto em alguns sistemas.
+    if (e.button !== 0) return;
+
+    resizeStartRef.current = { x: e.clientX, width: sidebarWidth };
+    // A captura mantém os eventos na alça mesmo quando o ponteiro corre para
+    // fora dela, que é o caso normal ao arrastar.
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setIsResizing(true);
+  };
+
+  const handleResizeMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isResizing) return;
+    const start = resizeStartRef.current;
+    setSidebarWidth(clampSidebarWidth(start.width + e.clientX - start.x));
+  };
+
+  const handleResizeEnd = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isResizing) return;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+    setIsResizing(false);
+  };
+
+  const handleResizeKeyDown = (e: React.KeyboardEvent) => {
+    const step = e.shiftKey ? 48 : 16;
+
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      setSidebarWidth((width) => clampSidebarWidth(width - step));
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      setSidebarWidth((width) => clampSidebarWidth(width + step));
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      setSidebarWidth(DEFAULT_SIDEBAR_WIDTH);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -399,7 +478,10 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
       <div
         className={`document-list ${isOpen ? 'mobile-open' : ''} ${
           isDraggingFiles ? 'dragging-files' : ''
-        }`}
+        } ${isResizing ? 'resizing' : ''}`}
+        // Vai por variável, e não por `width`, para o CSS do mobile poder
+        // fixar a largura do drawer sem disputar com o estilo inline.
+        style={{ '--sidebar-width': `${sidebarWidth}px` } as React.CSSProperties}
         onDragOver={handleListDragOver}
         onDragLeave={handleListDragLeave}
         onDrop={handleListDrop}
@@ -701,6 +783,24 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
             </>
           )}
         </div>
+
+        <div
+          className="document-list-resizer"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Ajustar a largura da barra lateral"
+          aria-valuenow={sidebarWidth}
+          aria-valuemin={MIN_SIDEBAR_WIDTH}
+          aria-valuemax={MAX_SIDEBAR_WIDTH}
+          tabIndex={0}
+          onPointerDown={handleResizeStart}
+          onPointerMove={handleResizeMove}
+          onPointerUp={handleResizeEnd}
+          onPointerCancel={handleResizeEnd}
+          onDoubleClick={() => setSidebarWidth(DEFAULT_SIDEBAR_WIDTH)}
+          onKeyDown={handleResizeKeyDown}
+          title="Arraste para redimensionar (duplo clique volta ao padrão)"
+        />
       </div>
 
       <ConfirmModal

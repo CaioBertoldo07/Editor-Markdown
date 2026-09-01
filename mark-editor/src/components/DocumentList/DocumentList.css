@@ -1,5 +1,6 @@
 .document-list {
-    width: 280px;
+    width: var(--sidebar-width, 280px);
+    flex-shrink: 0;
     height: 100vh;
     background: var(--bg-secondary);
     border-right: 1px solid var(--border);
@@ -14,6 +15,7 @@
 /* Mobile: Sidebar como drawer */
 @media (max-width: 768px) {
     .document-list {
+        width: 280px;
         position: fixed;
         left: -280px;
         top: 0;
@@ -184,21 +186,32 @@
     background: var(--bg-secondary);
 }
 
+/*
+ * Escondidas, as acoes ocupam largura zero: assim o nome da pasta se estende
+ * ate o fim da barra em vez de parar onde os botoes estariam. No hover elas
+ * reaparecem e o nome encurta com reticencias.
+ */
 .folder-actions {
     display: flex;
     align-items: center;
     gap: 2px;
     flex-shrink: 0;
+    max-width: 0;
+    overflow: hidden;
     opacity: 0;
     transition: opacity 0.15s ease;
 }
 
-.folder-header:hover .folder-actions {
+.folder-header:hover .folder-actions,
+/* Sem isto, o botao alcancado pelo teclado ficaria focado e invisivel */
+.folder-actions:focus-within {
+    max-width: 200px;
     opacity: 1;
 }
 
 @media (max-width: 768px) {
     .folder-actions {
+        max-width: 200px;
         opacity: 0.6;
     }
 }
@@ -206,6 +219,7 @@
 .folder-action {
     width: 24px;
     height: 24px;
+    flex-shrink: 0;
     background: transparent;
     border: 1px solid transparent;
     border-radius: 4px;
@@ -421,6 +435,13 @@
     align-items: center;
     gap: 2px;
     flex-shrink: 0;
+    max-width: 0;
+    overflow: hidden;
+}
+
+.document-item:hover .document-actions,
+.document-actions:focus-within {
+    max-width: 100px;
 }
 
 .btn-download {
@@ -439,7 +460,8 @@
     flex-shrink: 0;
 }
 
-.document-item:hover .btn-download {
+.document-item:hover .btn-download,
+.btn-download:focus-visible {
     opacity: 1;
 }
 
@@ -465,12 +487,17 @@
     flex-shrink: 0;
 }
 
-.document-item:hover .btn-delete {
+.document-item:hover .btn-delete,
+.btn-delete:focus-visible {
     opacity: 1;
 }
 
 /* Mobile: botões sempre visíveis, já que não há hover */
 @media (max-width: 768px) {
+    .document-actions {
+        max-width: 100px;
+    }
+
     .btn-delete,
     .btn-download {
         opacity: 0.6;
@@ -619,4 +646,73 @@
 .import-summary-close:hover {
     background: var(--bg-card);
     color: var(--text-primary);
+}
+
+/* ===== Alça de redimensionar ===== */
+
+/*
+ * Encostada na borda direita e por dentro da barra: a barra tem
+ * `overflow: hidden`, entao o que passasse do limite seria cortado e a area de
+ * acerto ficaria menor do que parece.
+ */
+.document-list-resizer {
+    position: absolute;
+    top: 0;
+    right: 0;
+    /* Estreita de proposito: a barra de rolagem da lista termina no mesmo
+       ponto, e uma alca larga demais cobriria boa parte dela. */
+    width: 4px;
+    height: 100%;
+    z-index: 200;
+    cursor: col-resize;
+    background: transparent;
+    /* Sem isso, arrastar num touchpad de precisao ou em tela sensivel ao toque
+       rolaria a pagina em vez de mover a alca. */
+    touch-action: none;
+}
+
+/* A linha visivel e fina; quem recebe o ponteiro e a faixa de 4px acima. */
+.document-list-resizer::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 2px;
+    height: 100%;
+    background: var(--accent);
+    opacity: 0;
+    transition: opacity 0.15s ease 0.1s;
+}
+
+.document-list-resizer:hover::after,
+.document-list-resizer:focus-visible::after,
+.document-list.resizing .document-list-resizer::after {
+    opacity: 1;
+}
+
+/* Ja arrastando, a faixa acompanha o ponteiro sem esperar o atraso do hover */
+.document-list.resizing .document-list-resizer::after {
+    transition-delay: 0s;
+}
+
+/* A linha grossa e o indicador de foco; o outline padrao ficaria numa faixa
+   de 6px encostada na borda e mal apareceria. */
+.document-list-resizer:focus-visible {
+    outline: none;
+}
+
+.document-list-resizer:focus-visible::after {
+    width: 4px;
+}
+
+/* Enquanto arrasta, a transição faria a barra ficar atrás do ponteiro */
+.document-list.resizing {
+    transition: none;
+}
+
+@media (max-width: 768px) {
+    /* O drawer tem largura fixa: não há o que redimensionar */
+    .document-list-resizer {
+        display: none;
+    }
 }
