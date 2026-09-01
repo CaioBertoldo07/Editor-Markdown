@@ -4,6 +4,8 @@ import type { Document, Folder } from '../types/document';
 import { neon } from '../lib/neon';
 import { useAuth } from './AuthContext';
 import { hasMigrated, migrateLocalDataToNeon } from '../utils/migration';
+import { parseImportFiles } from '../utils/import';
+import type { ImportSummary } from '../utils/import';
 
 /** Formato das linhas como vêm do Postgres (snake_case) */
 interface DocumentRow {
@@ -44,6 +46,8 @@ interface DocumentsContextType {
   error: string | null;
   dismissError: () => void;
   createDocument: (folderId?: string | null) => Promise<Document | null>;
+  /** Cria documentos a partir de arquivos .md enviados pelo usuário */
+  importDocuments: (files: File[], folderId?: string | null) => Promise<ImportSummary>;
   updateDocument: (id: string, updates: Partial<Document>) => void;
   deleteDocument: (id: string) => void;
   selectDocument: (id: string) => void;
@@ -161,6 +165,57 @@ export const DocumentsProvider: React.FC<DocumentsProviderProps> = ({ children }
     return newDoc;
   };
 
+  /**
+   * Importa arquivos markdown como novos documentos.
+   *
+   * Os arquivos que não servem (formato, tamanho, leitura) não impedem os
+   * outros: eles voltam na lista de `skipped` para a UI explicar o que ficou de
+   * fora. Já uma falha no banco derruba a importação inteira, porque a gravação
+   * é um insert único.
+   */
+  const importDocuments = async (
+    files: File[],
+    folderId: string | null = null
+  ): Promise<ImportSummary> => {
+    const { parsed, skipped } = await parseImportFiles(files);
+
+    if (parsed.length === 0) {
+      return { imported: 0, skipped, firstDocumentId: null };
+    }
+
+    const rows = parsed.map((doc) => ({
+      title: doc.title,
+      content: doc.content,
+      folder_id: folderId,
+    }));
+
+    const { data, error: insertError } = await neon.from('documents').insert(rows).select();
+
+    if (insertError || !data) {
+      console.error('Erro ao importar documentos:', insertError);
+      setError(
+        `Não foi possível importar os documentos: ${insertError?.message ?? 'erro desconhecido'}`
+      );
+      return {
+        imported: 0,
+        skipped: [
+          ...skipped,
+          ...parsed.map((doc) => ({ name: doc.title, reason: 'falha ao salvar no servidor' })),
+        ],
+        firstDocumentId: null,
+      };
+    }
+
+    const newDocs = (data as DocumentRow[]).map(toDocument);
+    setDocuments((prev) => [...newDocs, ...prev]);
+
+    // Veio um arquivo só: já deixa ele selecionado, como acontece ao criar um
+    // documento novo, para quem chamar poder abrir a rota dele em seguida.
+    if (newDocs.length === 1) setSelectedDocument(newDocs[0]);
+
+    return { imported: newDocs.length, skipped, firstDocumentId: newDocs[0]?.id ?? null };
+  };
+
   const updateDocument = (id: string, updates: Partial<Document>): void => {
     const updatedAt = new Date().toISOString();
 
@@ -274,6 +329,7 @@ export const DocumentsProvider: React.FC<DocumentsProviderProps> = ({ children }
         error,
         dismissError,
         createDocument,
+        importDocuments,
         updateDocument,
         deleteDocument,
         selectDocument,

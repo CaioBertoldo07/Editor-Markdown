@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useDocuments } from '../../context/DocumentsContext';
 import { useNavigate } from 'react-router-dom';
 import type { Document, Folder } from '../../types/document';
@@ -11,6 +11,8 @@ import {
 import { sortDocuments, sortFolders } from '../../utils/sorting';
 import type { SortMode } from '../../utils/sorting';
 import { downloadDocument, downloadFolderAsZip } from '../../utils/download';
+import { IMPORT_ACCEPT, filesFromDrop, isFileDrag } from '../../utils/import';
+import type { ImportSummary } from '../../utils/import';
 import AppIcon from '../AppIcon/AppIcon';
 import ConfirmModal from '../ConfirmModal/ConfirmModal';
 import './DocumentList.css';
@@ -34,6 +36,7 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
     folders,
     selectedDocument,
     createDocument,
+    importDocuments,
     deleteDocument,
     isLoading,
     selectDocument,
@@ -54,6 +57,14 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
   // primeira vez tem uma espera perceptível.
   const [zippingFolderId, setZippingFolderId] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>(() => loadSortMode());
+  // Importação: o input fica escondido e é acionado pelo botão da barra.
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  // Pasta que vai receber os arquivos escolhidos pelo botão da própria pasta
+  const importTargetRef = useRef<string | null>(null);
+  const [importSummary, setImportSummary] = useState<ImportSummary | null>(null);
+  // true enquanto o usuário arrasta arquivos de fora do navegador sobre a lista
+  const [isDraggingFiles, setIsDraggingFiles] = useState(false);
 
   useEffect(() => {
     saveCollapsedFolders(collapsedFolders);
@@ -62,6 +73,30 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
   useEffect(() => {
     saveSortMode(sortMode);
   }, [sortMode]);
+
+  // Um arquivo solto fora das áreas de importação faz o navegador abrir o
+  // arquivo e trocar o app pela tela dele. Cancelar o comportamento padrão
+  // deixa o erro de mira sem consequência.
+  useEffect(() => {
+    const cancelDefaultDrop = (e: DragEvent) => {
+      if (isFileDrag(e.dataTransfer)) e.preventDefault();
+    };
+
+    window.addEventListener('dragover', cancelDefaultDrop);
+    window.addEventListener('drop', cancelDefaultDrop);
+
+    return () => {
+      window.removeEventListener('dragover', cancelDefaultDrop);
+      window.removeEventListener('drop', cancelDefaultDrop);
+    };
+  }, []);
+
+  // O resumo da importação some sozinho; ele é um aviso, não uma pendência.
+  useEffect(() => {
+    if (!importSummary) return;
+    const timer = setTimeout(() => setImportSummary(null), 8000);
+    return () => clearTimeout(timer);
+  }, [importSummary]);
 
   const sortedFolders = sortFolders(folders);
   const rootDocuments = sortDocuments(
@@ -101,6 +136,51 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
     selectDocument(id);
     navigate(`/doc/${id}`);
     if (onClose) onClose();
+  };
+
+  // --- Importação ---
+
+  /** Cria os documentos e conta para o usuário o que entrou e o que ficou de fora. */
+  const runImport = async (files: File[], directories: string[], folderId: string | null) => {
+    if (files.length === 0 && directories.length === 0) return;
+
+    setIsImporting(true);
+    setImportSummary(null);
+
+    try {
+      const summary = await importDocuments(files, folderId);
+
+      setImportSummary({
+        ...summary,
+        skipped: [
+          ...summary.skipped,
+          ...directories.map((name) => ({ name, reason: 'pastas não são importadas' })),
+        ],
+      });
+
+      if (folderId) expandFolder(folderId);
+
+      // Veio um arquivo só: abre ele direto, como ao criar um documento novo.
+      if (summary.imported === 1 && summary.firstDocumentId) {
+        navigate(`/doc/${summary.firstDocumentId}`);
+        if (onClose) onClose();
+      }
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const openFilePicker = (folderId: string | null = null) => {
+    importTargetRef.current = folderId;
+    fileInputRef.current?.click();
+  };
+
+  const handleFilesChosen = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    // Limpa o input: sem isso, escolher o mesmo arquivo de novo não dispara
+    // outro change e a importação não aconteceria.
+    e.target.value = '';
+    void runImport(files, [], importTargetRef.current);
   };
 
   // --- Pastas ---
@@ -164,9 +244,10 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
   };
 
   const handleDragOver = (e: React.DragEvent, target: string | null) => {
-    if (!draggedDocId) return;
+    const files = isFileDrag(e.dataTransfer);
+    if (!draggedDocId && !files) return;
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    e.dataTransfer.dropEffect = files ? 'copy' : 'move';
     setDropTarget(target);
   };
 
@@ -179,9 +260,44 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
   const handleDrop = (e: React.DragEvent, target: string | null) => {
     e.preventDefault();
     e.stopPropagation();
+
+    // Arquivos vindos de fora do navegador viram documentos novos; o que é
+    // arrastado dentro da lista é um documento sendo movido de pasta.
+    if (isFileDrag(e.dataTransfer)) {
+      // Precisa ser lido agora: o dataTransfer é esvaziado quando o handler sai.
+      const { files, directories } = filesFromDrop(e.dataTransfer);
+      setIsDraggingFiles(false);
+      setDropTarget(undefined);
+      void runImport(files, directories, target);
+      return;
+    }
+
     const docId = e.dataTransfer.getData('text/plain') || draggedDocId;
     if (docId) moveDocument(docId, target);
     handleDragEnd();
+  };
+
+  /**
+   * A sidebar inteira aceita arquivos: soltar fora de uma pasta importa para
+   * "Sem pasta". As áreas internas param a propagação, então só chega aqui o
+   * que foi solto no cabeçalho ou no espaço vazio da lista.
+   */
+  const handleListDragOver = (e: React.DragEvent) => {
+    if (!isFileDrag(e.dataTransfer)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    setIsDraggingFiles(true);
+  };
+
+  const handleListDragLeave = (e: React.DragEvent) => {
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    setIsDraggingFiles(false);
+    setDropTarget(undefined);
+  };
+
+  const handleListDrop = (e: React.DragEvent) => {
+    if (!isFileDrag(e.dataTransfer)) return;
+    handleDrop(e, null);
   };
 
   // --- Download ---
@@ -280,13 +396,47 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
     <>
       {isOpen && onClose && <div className="mobile-overlay" onClick={onClose} />}
 
-      <div className={`document-list ${isOpen ? 'mobile-open' : ''}`}>
+      <div
+        className={`document-list ${isOpen ? 'mobile-open' : ''} ${
+          isDraggingFiles ? 'dragging-files' : ''
+        }`}
+        onDragOver={handleListDragOver}
+        onDragLeave={handleListDragLeave}
+        onDrop={handleListDrop}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="import-input"
+          accept={IMPORT_ACCEPT}
+          multiple
+          onChange={handleFilesChosen}
+        />
+
         <div className="document-list-header">
           <div className="document-list-brand">
             <AppIcon className="document-list-logo" size={28} />
             <h2>Documentos</h2>
           </div>
           <div className="header-actions">
+            <button
+              className="btn-create btn-import"
+              onClick={() => openFilePicker(null)}
+              disabled={isImporting}
+              title="Importar arquivos .md do computador"
+            >
+              {isImporting ? (
+                <svg className="folder-action-spinner" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+                </svg>
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="17 8 12 3 7 8"></polyline>
+                  <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+              )}
+            </button>
             <button
               className="btn-create btn-create-folder"
               onClick={handleCreateFolder}
@@ -323,6 +473,63 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
           </select>
         </div>
 
+        {isDraggingFiles && (
+          <div className="import-hint">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            <span>
+              {typeof dropTarget === 'string'
+                ? `Solte para importar em "${folders.find((f) => f.id === dropTarget)?.name ?? 'pasta'}"`
+                : 'Solte os arquivos .md para importar'}
+            </span>
+          </div>
+        )}
+
+        {importSummary && (
+          <div
+            className={`import-summary ${importSummary.imported === 0 ? 'import-summary-empty' : ''}`}
+            role="status"
+          >
+            <div className="import-summary-text">
+              <strong>
+                {importSummary.imported === 0
+                  ? 'Nenhum documento importado'
+                  : `${importSummary.imported} ${
+                      importSummary.imported === 1
+                        ? 'documento importado'
+                        : 'documentos importados'
+                    }`}
+              </strong>
+              {importSummary.skipped.length > 0 && (
+                <ul className="import-summary-skipped">
+                  {importSummary.skipped.slice(0, 3).map((item, index) => (
+                    <li key={`${item.name}-${index}`}>
+                      {item.name} — {item.reason}
+                    </li>
+                  ))}
+                  {importSummary.skipped.length > 3 && (
+                    <li>e mais {importSummary.skipped.length - 3} arquivo(s) de fora</li>
+                  )}
+                </ul>
+              )}
+            </div>
+
+            <button
+              className="import-summary-close"
+              onClick={() => setImportSummary(null)}
+              aria-label="Fechar aviso"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+        )}
+
         <div className="documents-container">
           {isLoading ? (
             <div className="empty-state">
@@ -331,7 +538,7 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
           ) : documents.length === 0 && folders.length === 0 ? (
             <div className="empty-state">
               <p>Nenhum documento criado</p>
-              <small>Clique no botão + para começar</small>
+              <small>Clique no botão + para começar ou arraste arquivos .md para cá</small>
             </div>
           ) : (
             <>
@@ -397,6 +604,21 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                             <line x1="12" y1="5" x2="12" y2="19"></line>
                             <line x1="5" y1="12" x2="19" y2="12"></line>
+                          </svg>
+                        </button>
+                        <button
+                          className="folder-action"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openFilePicker(folder.id);
+                          }}
+                          disabled={isImporting}
+                          title="Importar arquivos .md para esta pasta"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
                           </svg>
                         </button>
                         <button

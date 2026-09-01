@@ -84,8 +84,9 @@
     transform: scale(0.98);
 }
 
-/* Botao de nova pasta: secundario em relacao ao de novo documento */
-.btn-create-folder {
+/* Botoes secundarios da barra, em relacao ao de novo documento */
+.btn-create-folder,
+.btn-import {
     width: 34px;
     height: 34px;
     background: var(--bg-card);
@@ -93,7 +94,8 @@
     color: var(--text-secondary);
 }
 
-.btn-create-folder:hover {
+.btn-create-folder:hover,
+.btn-import:hover {
     background: var(--bg-main);
     border-color: var(--accent);
     color: var(--accent);
@@ -508,4 +510,113 @@
     .mobile-overlay.hidden {
         display: none;
     }
+}
+/* ===== Importação ===== */
+
+/* O input real fica escondido: quem abre o seletor são os botões de importar. */
+.import-input {
+    display: none;
+}
+
+.btn-create:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.btn-create:disabled:hover {
+    transform: none;
+}
+
+.btn-create-folder:disabled:hover,
+.btn-import:disabled:hover {
+    background: var(--bg-card);
+    border-color: var(--border);
+    color: var(--text-secondary);
+}
+
+/* Contorno na sidebar inteira enquanto arquivos estão sendo arrastados sobre ela */
+.document-list.dragging-files::after {
+    content: '';
+    position: absolute;
+    inset: 4px;
+    border: 2px dashed var(--accent);
+    border-radius: var(--radius);
+    pointer-events: none;
+    z-index: 10;
+}
+
+.import-hint {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: var(--accent-transparent);
+    border-bottom: 1px solid var(--border);
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.import-hint svg {
+    flex-shrink: 0;
+}
+
+.import-hint span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.import-summary {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 12px 10px 20px;
+    background: var(--accent-transparent);
+    border-bottom: 1px solid var(--border);
+    animation: fadeIn 0.2s ease-out;
+}
+
+/* Nada entrou: o aviso é sobre o que foi recusado, não sobre um sucesso. */
+.import-summary.import-summary-empty {
+    background: rgba(234, 179, 8, 0.12);
+}
+
+.import-summary-text {
+    flex: 1;
+    min-width: 0;
+    font-size: 12px;
+    color: var(--text-primary);
+}
+
+.import-summary-skipped {
+    margin: 4px 0 0;
+    padding-left: 14px;
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.import-summary-skipped li {
+    overflow-wrap: anywhere;
+}
+
+.import-summary-close {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+
+.import-summary-close:hover {
+    background: var(--bg-card);
+    color: var(--text-primary);
 }
