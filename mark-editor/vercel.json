@@ -1,4 +1,9 @@
 {
+  "git": {
+    "deploymentEnabled": {
+      "migracao-railway": false
+    }
+  },
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]
