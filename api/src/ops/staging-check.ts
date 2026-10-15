@@ -66,9 +66,9 @@ export async function runStagingCheck(env: StagingCheckEnv, log: (l: string) => 
     base: string,
     method: string,
     path: string,
-    o: { cookie?: string; body?: unknown; key?: boolean; ip?: string } = {}
+    o: { cookie?: string; body?: unknown; key?: boolean; ip?: string; headers?: Record<string, string> } = {}
   ) => {
-    const headers: Record<string, string> = { origin: env.origin };
+    const headers: Record<string, string> = { origin: env.origin, ...o.headers };
     if (o.key !== false && env.accessKey) headers['x-staging-key'] = env.accessKey;
     if (o.cookie) headers.cookie = o.cookie;
     if (o.ip) headers['x-forwarded-for'] = o.ip;
@@ -321,6 +321,18 @@ export async function runStagingCheck(env: StagingCheckEnv, log: (l: string) => 
         const hops = Object.entries(d.forwarding).map(([k, v]) => `${k}:${v.hops}`).join(' ');
         expect(d.rateLimitIp !== null, `nenhum IP resolvido (${hops})`);
         return `${hops}; IP do rate limit resolvido`;
+      });
+      await attempt('pública: cabeçalhos de IP forjados pelo cliente não definem o IP do rate limit', async () => {
+        const r = await call(U, 'GET', '/api/_diag/request', {
+          headers: { 'x-forwarded-for': '198.51.100.77', 'x-real-ip': '198.51.100.88' },
+        });
+        if (r.status === 404) return 'diagnóstico desligado';
+        const d = (await r.json()) as { forwarding: Record<string, { hops: number; masked: string[] }>; rateLimitIp: string | null };
+        const view = Object.entries(d.forwarding)
+          .map(([k, v]) => `${k}:${v.hops}[${v.masked.map((m) => (m.startsWith('198.51.') ? 'FORJADO' : 'outro')).join('|')}]`)
+          .join(' ');
+        expect(d.rateLimitIp !== '198.51.x.x', `IP forjado aceito pelo rate limit (${view})`);
+        return `${view}; rate limit usa ${d.rateLimitIp === null ? 'balde compartilhado (cadeia sem proxy confiável)' : 'IP não forjado'}`;
       });
     } else {
       record('pública: não testada', false, 'STAGING_PUBLIC_URL ausente');
