@@ -5,6 +5,7 @@ import type { Auth } from './auth/auth.js';
 import { createLoginThrottle, type LoginThrottleOptions } from './auth/login-throttle.js';
 import { requireSession, type AuthVariables } from './auth/session.js';
 import { handleError } from './http/errors.js';
+import { requestDiagnostics, stagingGate } from './http/staging.js';
 import { documentsRoutes } from './routes/documents.js';
 import { foldersRoutes } from './routes/folders.js';
 
@@ -12,9 +13,16 @@ export type AppDeps = {
   pool: pg.Pool;
   auth: Auth;
   loginThrottle?: LoginThrottleOptions;
+  /** Só staging: chave de acesso e diagnóstico de cabeçalhos. */
+  staging?: {
+    accessKey: string | null;
+    diagnostics: boolean;
+    ipAddressHeaders: string[];
+    trustedProxies: string[];
+  };
 };
 
-export function createApp({ pool, auth, loginThrottle }: AppDeps) {
+export function createApp({ pool, auth, loginThrottle, staging }: AppDeps) {
   const app = new Hono<{ Variables: AuthVariables }>();
 
   app.use('*', secureHeaders());
@@ -22,6 +30,7 @@ export function createApp({ pool, auth, loginThrottle }: AppDeps) {
     await next();
     c.header('Cache-Control', 'no-store');
   });
+  if (staging?.accessKey) app.use('*', stagingGate(staging.accessKey));
 
   app.get('/api/health', async (c) => {
     try {
@@ -31,6 +40,10 @@ export function createApp({ pool, auth, loginThrottle }: AppDeps) {
       return c.json({ status: 'unavailable' }, 503);
     }
   });
+
+  if (staging?.diagnostics) {
+    app.get('/api/_diag/request', requestDiagnostics(staging));
+  }
 
   // Better Auth: login, logout e sessão. Cadastro está desligado na config.
   app.post('/api/auth/sign-in/email', createLoginThrottle(loginThrottle));

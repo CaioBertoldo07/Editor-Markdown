@@ -35,6 +35,19 @@ const envSchema = z.object({
     ),
   /** IPs/CIDRs dos proxies confiáveis (Vercel/Railway), para ler cadeias de X-Forwarded-For. */
   TRUSTED_PROXIES: csv,
+  /**
+   * Só em staging: exige o cabeçalho `x-staging-key` com este valor em todas as
+   * rotas, exceto GET /api/health. Vazio = desligado (produção).
+   */
+  STAGING_ACCESS_KEY: z
+    .string()
+    .default('')
+    .refine((v) => v === '' || v.length >= 32, 'STAGING_ACCESS_KEY precisa de pelo menos 32 caracteres'),
+  /** Só em staging: liga GET /api/_diag/request (cabeçalhos de proxy, IPs mascarados). */
+  ENABLE_REQUEST_DIAGNOSTICS: z
+    .enum(['true', 'false', ''])
+    .default('false')
+    .transform((v) => v === 'true'),
 });
 
 export type Config = {
@@ -50,6 +63,8 @@ export type Config = {
   trustedProxies: string[];
   /** Cookies com Secure: obrigatório sempre que a origem é https. */
   secureCookies: boolean;
+  stagingAccessKey: string | null;
+  requestDiagnostics: boolean;
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -77,5 +92,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     ipAddressHeaders: e.IP_ADDRESS_HEADERS,
     trustedProxies: e.TRUSTED_PROXIES,
     secureCookies: origin.startsWith('https://'),
+    stagingAccessKey: e.STAGING_ACCESS_KEY || null,
+    requestDiagnostics: e.ENABLE_REQUEST_DIAGNOSTICS,
   };
 }

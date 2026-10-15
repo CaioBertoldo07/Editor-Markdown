@@ -7,7 +7,19 @@ import { createPool } from './db/pool.js';
 const config = loadConfig();
 const pool = createPool(config.databaseUrl, config.dbPoolMax);
 const auth = createAuth(config, pool);
-const app = createApp({ pool, auth });
+const app = createApp({
+  pool,
+  auth,
+  staging: {
+    accessKey: config.stagingAccessKey,
+    diagnostics: config.requestDiagnostics,
+    ipAddressHeaders: config.ipAddressHeaders,
+    trustedProxies: config.trustedProxies,
+  },
+});
+
+if (config.stagingAccessKey) console.log('[api] modo staging: x-staging-key obrigatório (exceto /api/health)');
+if (config.requestDiagnostics) console.log('[api] diagnóstico de cabeçalhos ligado em /api/_diag/request');
 
 const server = serve({ fetch: app.fetch, port: config.port, hostname: config.host }, (info) => {
   console.log(`[api] ouvindo na porta ${info.port} (${config.nodeEnv})`);
