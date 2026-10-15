@@ -101,6 +101,8 @@ describe('transferência Neon -> Railway (fictícia)', () => {
     expect(r.counts).toMatchObject({ users: 2, accounts: 2, hashesInExpectedFormat: 2, folders: 1, documents: 3, sessionsNotMigrated: 2 });
     const out = logs.join('\n');
     expect(out).toContain('documents_set_updated_at');
+    expect(out).toContain('transaction_read_only=on, nenhuma escrita na transação=sim');
+    expect(out).toContain('destino staging (somente leitura): {"users":"0","accounts":"0","sessions":"0","folders":"0","documents":"0"}');
     for (const p of people) {
       expect(out).not.toContain(p.email);
       expect(out).not.toContain(p.name);
