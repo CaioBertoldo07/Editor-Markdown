@@ -71,7 +71,12 @@ export async function runStagingCheck(env: StagingCheckEnv, log: (l: string) => 
     const headers: Record<string, string> = { origin: env.origin, ...o.headers };
     if (o.key !== false && env.accessKey) headers['x-staging-key'] = env.accessKey;
     if (o.cookie) headers.cookie = o.cookie;
-    if (o.ip) headers['x-forwarded-for'] = o.ip;
+    // Rede privada não tem proxy: o job simula o IP do cliente nos dois
+    // cabeçalhos aceitos pela configuração (x-forwarded-for ou x-real-ip).
+    if (o.ip) {
+      headers['x-forwarded-for'] = o.ip;
+      headers['x-real-ip'] = o.ip;
+    }
     if (o.body !== undefined) headers['content-type'] = 'application/json';
     return fetch(`${base}${path}`, {
       method,
