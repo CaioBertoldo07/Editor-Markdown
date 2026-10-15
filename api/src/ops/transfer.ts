@@ -133,6 +133,32 @@ export async function runInspect(o: TransferOptions): Promise<Inspection> {
     for (const n of result.notes) log(`[inspect] ${n}`);
     if (result.problems.length === 0) log('[inspect] nenhum problema que bloqueie a transferência');
     for (const p of result.problems) log(`[inspect] PROBLEMA: ${p}`);
+
+    // Prova de que nada foi escrito no Neon: a transação é READ ONLY e nunca
+    // recebeu um ID de transação (só é atribuído quando há escrita).
+    const proof = await source.query<{ ro: string; no_xid: boolean }>(
+      `SELECT current_setting('transaction_read_only') AS ro, pg_current_xact_id_if_assigned() IS NULL AS no_xid`
+    );
+    const p = proof.rows[0]!;
+    log(`[inspect] origem: transaction_read_only=${p.ro}, nenhuma escrita na transação=${p.no_xid ? 'sim' : 'NÃO'}`);
+    if (p.ro !== 'on' || !p.no_xid) result.problems.push('a sessão da origem não ficou somente leitura');
+
+    // Estado do destino, lido também em transação somente leitura.
+    const target = new pg.Client({ connectionString: o.targetUrl, application_name: 'editor-markdown-inspect-target' });
+    await target.connect();
+    try {
+      await target.query('BEGIN TRANSACTION READ ONLY');
+      const t = await target.query<Record<string, string>>(`
+        SELECT (SELECT count(*) FROM app_auth."user")::text AS users,
+               (SELECT count(*) FROM app_auth.account)::text AS accounts,
+               (SELECT count(*) FROM app_auth.session)::text AS sessions,
+               (SELECT count(*) FROM app.folders)::text AS folders,
+               (SELECT count(*) FROM app.documents)::text AS documents`);
+      await target.query('ROLLBACK');
+      log(`[inspect] destino staging (somente leitura): ${JSON.stringify(t.rows[0])}`);
+    } finally {
+      await target.end();
+    }
     return result;
   } finally {
     await source.query('ROLLBACK').catch(() => undefined);
