@@ -8,7 +8,7 @@ mesmo domínio (rewrite `/api/*`, a configurar na etapa de integração).
 - [Better Auth](https://better-auth.com) self-hosted: só e-mail/senha, cadastro público desligado
 - Testes com Vitest sobre PostgreSQL 18 isolado (embutido via `embedded-postgres`)
 
-> Status: Etapa 2 (fundação). Ainda não está em produção nem ligada ao frontend.
+> Status: Etapa 3 (ensaio em staging no Railway). Ainda não está em produção nem ligada ao frontend.
 
 ## Estrutura
 
@@ -30,7 +30,8 @@ api/
 │   ├── config.ts            # variáveis de ambiente validadas
 │   ├── auth/                # Better Auth, sessão obrigatória, limite por e-mail
 │   ├── db/                  # pool do app_api, withUser(), executor de migrations
-│   ├── http/                # schemas Zod, erros, mapeamento de linhas
+│   ├── http/                # schemas Zod, erros, mapeamento, chave de staging
+│   ├── ops/                 # serviço de operações: migrate, staging-check, transferência
 │   └── routes/              # documents, folders
 └── test/                    # Vitest (banco isolado, dados fictícios)
 ```
@@ -93,6 +94,23 @@ npm run build && npm run migrate -- --set-api-password
 - Cada arquivo roda numa transação e fica registrado em `public.schema_migrations` com checksum.
 - Migration já aplicada não pode ser editada: crie a próxima (`005_...sql`).
 - A senha do `app_api` nunca vai para o git; o serviço da API usa só `DATABASE_URL` com esse papel.
+
+## Staging no Railway
+
+Projeto `editor-markdown`, ambiente `staging`:
+
+| Serviço | Papel | Start | Variáveis principais |
+| --- | --- | --- | --- |
+| `Postgres` | PostgreSQL 18 com volume, sem proxy público | — | — |
+| `editor-markdown-api` | API (rede privada até o banco) | `npm start` | `DATABASE_URL` (app_api), `BETTER_AUTH_*`, `STAGING_ACCESS_KEY` |
+| `editor-markdown-ops` | Tarefas únicas, sem domínio, restart "never" | `npm run ops` | `OPS_TASK`, `MIGRATION_DATABASE_URL` (admin), `APP_API_DB_PASSWORD` |
+
+- Root directory `api`, build `npm run build`, healthcheck `/api/health` (só na API).
+- A API **nunca** recebe a URL de administrador; só o serviço de operações.
+- Com `STAGING_ACCESS_KEY` definido, tudo exceto `/api/health` exige o cabeçalho
+  `x-staging-key` (sem ele: 404). Em produção a variável fica vazia.
+- `OPS_TASK=staging-check` testa banco e API com dois usuários fictícios
+  (`@example.invalid`) e apaga tudo no final.
 
 ## Importação dos dados do Neon
 
