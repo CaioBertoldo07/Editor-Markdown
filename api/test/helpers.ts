@@ -22,6 +22,8 @@ export function testConfig(databaseUrl: string): Config {
     ipAddressHeaders: ['x-forwarded-for'],
     trustedProxies: [],
     secureCookies: true,
+    stagingAccessKey: null,
+    requestDiagnostics: false,
   };
 }
 
