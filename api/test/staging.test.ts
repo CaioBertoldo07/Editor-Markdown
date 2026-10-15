@@ -108,13 +108,16 @@ describe('job staging-check (contra um servidor HTTP real)', () => {
       (l) => lines.push(l)
     );
     const failures = lines.filter((l) => l.startsWith('FAIL'));
-    expect(failures).toEqual([]);
-    expect(ok).toBe(true);
+    // Sem proxy na frente (teste local), um X-Forwarded-For forjado É aceito:
+    // a verificação precisa DETECTAR isso. No Railway ela tem de passar.
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toMatch(/^FAIL  pública: cabeçalhos de IP forjados pelo cliente.*IP forjado aceito/);
+    expect(ok).toBe(false);
     // Nada sensível nos logs
     const all = lines.join('\n');
     expect(all).not.toContain(KEY);
     expect(all).not.toMatch(/session_token=/);
     expect(all).not.toMatch(/[0-9a-f]{32}:[0-9a-f]{128}/);
-    expect(all).toMatch(/RESULTADO: (\d+)\/\1 verificações aprovadas/);
+    expect(all).toMatch(/RESULTADO: \d+\/\d+ verificações aprovadas/);
   });
 });
