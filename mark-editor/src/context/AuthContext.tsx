@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
-import { neon } from '../lib/neon';
+import { api, onUnauthorized } from '../lib/api';
 
 export interface AuthUser {
   id: string;
@@ -14,7 +14,6 @@ interface AuthContextType {
   isLoading: boolean;
   /** Retorna a mensagem de erro, ou null em caso de sucesso */
   signIn: (email: string, password: string) => Promise<string | null>;
-  signUp: (name: string, email: string, password: string) => Promise<string | null>;
   signOut: () => Promise<void>;
 }
 
@@ -24,25 +23,19 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+/**
+ * Sessão do Better Auth self-hosted (API no Railway). O cookie é HttpOnly e
+ * fica no domínio do app; aqui só perguntamos à API quem está logado.
+ * O cadastro público está desligado no servidor.
+ */
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const readSession = useCallback(async () => {
-    const result = await neon.auth.getSession();
-    const sessionUser = result.data?.user;
-
-    if (sessionUser) {
-      setUser({
-        id: sessionUser.id,
-        email: sessionUser.email,
-        name: sessionUser.name,
-      });
-      return true;
-    }
-
-    setUser(null);
-    return false;
+    const sessionUser = await api.auth.getSession();
+    setUser(sessionUser ? { id: sessionUser.id, email: sessionUser.email, name: sessionUser.name } : null);
+    return !!sessionUser;
   }, []);
 
   // Restaurar sessão ao abrir o app
@@ -55,43 +48,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       .finally(() => setIsLoading(false));
   }, [readSession]);
 
+  // Sessão expirada no meio do uso: volta para a tela de login.
+  useEffect(() => {
+    onUnauthorized(() => setUser(null));
+    return () => onUnauthorized(null);
+  }, []);
+
   const signIn = async (email: string, password: string): Promise<string | null> => {
     try {
-      const result = await neon.auth.signIn.email({ email, password });
-      if (result.error) return result.error.message ?? 'Não foi possível entrar.';
-
-      await readSession();
-      return null;
+      await api.auth.signIn(email, password);
+      const ok = await readSession();
+      return ok ? null : 'Não foi possível iniciar a sessão. Verifique se os cookies estão habilitados.';
     } catch (err) {
-      console.error('Erro no login:', err);
-      return 'Não foi possível conectar ao servidor.';
-    }
-  };
-
-  const signUp = async (name: string, email: string, password: string): Promise<string | null> => {
-    try {
-      const result = await neon.auth.signUp.email({ name, email, password });
-      if (result.error) return result.error.message ?? 'Não foi possível criar a conta.';
-
-      await readSession();
-      return null;
-    } catch (err) {
-      console.error('Erro no cadastro:', err);
-      return 'Não foi possível conectar ao servidor.';
+      console.error('Erro no login:', (err as Error).message);
+      return (err as Error).message || 'Não foi possível entrar.';
     }
   };
 
   const signOut = async (): Promise<void> => {
     try {
-      await neon.auth.signOut();
+      await api.auth.signOut();
     } catch (err) {
-      console.error('Erro ao sair:', err);
+      console.error('Erro ao sair:', (err as Error).message);
     }
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, isLoading, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

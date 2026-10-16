@@ -1,40 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import type { Document, Folder } from '../types/document';
-import { neon } from '../lib/neon';
+import { api } from '../lib/api';
 import { useAuth } from './AuthContext';
-import { hasMigrated, migrateLocalDataToNeon } from '../utils/migration';
+import { hasMigrated, migrateLocalData } from '../utils/migration';
 import { parseImportFiles } from '../utils/import';
 import type { ImportSummary } from '../utils/import';
-
-/** Formato das linhas como vêm do Postgres (snake_case) */
-interface DocumentRow {
-  id: string;
-  title: string;
-  content: string;
-  folder_id: string | null;
-  updated_at: string;
-}
-
-interface FolderRow {
-  id: string;
-  name: string;
-  created_at: string;
-}
-
-const toDocument = (row: DocumentRow): Document => ({
-  id: row.id,
-  title: row.title,
-  content: row.content,
-  folderId: row.folder_id,
-  updatedAt: row.updated_at,
-});
-
-const toFolder = (row: FolderRow): Folder => ({
-  id: row.id,
-  name: row.name,
-  createdAt: row.created_at,
-});
 
 interface DocumentsContextType {
   documents: Document[];
@@ -75,18 +46,8 @@ export const DocumentsProvider: React.FC<DocumentsProviderProps> = ({ children }
   const dismissError = useCallback(() => setError(null), []);
 
   const fetchAll = useCallback(async () => {
-    const [foldersResult, documentsResult] = await Promise.all([
-      neon.from('folders').select('*').order('created_at', { ascending: true }),
-      neon.from('documents').select('*').order('updated_at', { ascending: false }),
-    ]);
-
-    if (foldersResult.error) throw new Error(foldersResult.error.message);
-    if (documentsResult.error) throw new Error(documentsResult.error.message);
-
-    return {
-      folders: (foldersResult.data ?? []).map(toFolder),
-      documents: (documentsResult.data ?? []).map(toDocument),
-    };
+    const [folders, documents] = await Promise.all([api.folders.list(), api.documents.list()]);
+    return { folders, documents };
   }, []);
 
   // Carregar do banco sempre que o usuário logado mudar
@@ -107,7 +68,7 @@ export const DocumentsProvider: React.FC<DocumentsProviderProps> = ({ children }
 
       // Primeira entrada com a conta vazia: sobe o que existia no localStorage
       if (!cancelled && result.documents.length === 0 && result.folders.length === 0 && !hasMigrated()) {
-        const migrated = await migrateLocalDataToNeon();
+        const migrated = await migrateLocalData();
         if (migrated > 0) result = await fetchAll();
       }
 
@@ -118,7 +79,7 @@ export const DocumentsProvider: React.FC<DocumentsProviderProps> = ({ children }
     })()
       .catch((err: Error) => {
         if (cancelled) return;
-        console.error('Erro ao carregar do Neon:', err);
+        console.error('Erro ao carregar documentos:', err.message);
         setError(`Não foi possível carregar seus documentos: ${err.message}`);
       })
       .finally(() => {
@@ -131,38 +92,24 @@ export const DocumentsProvider: React.FC<DocumentsProviderProps> = ({ children }
   }, [user, fetchAll]);
 
   /** Roda a escrita no banco em segundo plano e avisa se falhar */
-  const sync = (promise: PromiseLike<{ error: { message: string } | null }>, acao: string) => {
-    Promise.resolve(promise).then(
-      ({ error: syncError }) => {
-        if (syncError) {
-          console.error(`Erro ao ${acao}:`, syncError);
-          setError(`Não foi possível ${acao}: ${syncError.message}`);
-        }
-      },
-      (err: Error) => {
-        console.error(`Erro ao ${acao}:`, err);
-        setError(`Não foi possível ${acao}: ${err.message}`);
-      }
-    );
+  const sync = (promise: Promise<unknown>, acao: string) => {
+    promise.catch((err: Error) => {
+      console.error(`Erro ao ${acao}:`, err.message);
+      setError(`Não foi possível ${acao}: ${err.message}`);
+    });
   };
 
   const createDocument = async (folderId: string | null = null): Promise<Document | null> => {
-    const { data, error: insertError } = await neon
-      .from('documents')
-      .insert({ title: 'Novo Documento', content: '', folder_id: folderId })
-      .select()
-      .single();
-
-    if (insertError || !data) {
-      console.error('Erro ao criar documento:', insertError);
-      setError(`Não foi possível criar o documento: ${insertError?.message ?? 'erro desconhecido'}`);
+    try {
+      const newDoc = await api.documents.create({ title: 'Novo Documento', content: '', folderId });
+      setDocuments((prev) => [newDoc, ...prev]);
+      setSelectedDocument(newDoc);
+      return newDoc;
+    } catch (err) {
+      console.error('Erro ao criar documento:', (err as Error).message);
+      setError(`Não foi possível criar o documento: ${(err as Error).message}`);
       return null;
     }
-
-    const newDoc = toDocument(data);
-    setDocuments((prev) => [newDoc, ...prev]);
-    setSelectedDocument(newDoc);
-    return newDoc;
   };
 
   /**
@@ -183,19 +130,15 @@ export const DocumentsProvider: React.FC<DocumentsProviderProps> = ({ children }
       return { imported: 0, skipped, firstDocumentId: null };
     }
 
-    const rows = parsed.map((doc) => ({
-      title: doc.title,
-      content: doc.content,
-      folder_id: folderId,
-    }));
-
-    const { data, error: insertError } = await neon.from('documents').insert(rows).select();
-
-    if (insertError || !data) {
-      console.error('Erro ao importar documentos:', insertError);
-      setError(
-        `Não foi possível importar os documentos: ${insertError?.message ?? 'erro desconhecido'}`
+    let newDocs: Document[];
+    try {
+      newDocs = await api.documents.import(
+        parsed.map((doc) => ({ title: doc.title, content: doc.content })),
+        folderId
       );
+    } catch (err) {
+      console.error('Erro ao importar documentos:', (err as Error).message);
+      setError(`Não foi possível importar os documentos: ${(err as Error).message}`);
       return {
         imported: 0,
         skipped: [
@@ -206,7 +149,6 @@ export const DocumentsProvider: React.FC<DocumentsProviderProps> = ({ children }
       };
     }
 
-    const newDocs = (data as DocumentRow[]).map(toDocument);
     setDocuments((prev) => [...newDocs, ...prev]);
 
     // Veio um arquivo só: já deixa ele selecionado, como acontece ao criar um
@@ -228,14 +170,14 @@ export const DocumentsProvider: React.FC<DocumentsProviderProps> = ({ children }
       setSelectedDocument((prev) => (prev ? { ...prev, ...updates, updatedAt } : null));
     }
 
-    const payload: Record<string, unknown> = {};
+    const payload: { title?: string; content?: string; folderId?: string | null } = {};
     if (updates.title !== undefined) payload.title = updates.title;
     if (updates.content !== undefined) payload.content = updates.content;
-    if (updates.folderId !== undefined) payload.folder_id = updates.folderId;
+    if (updates.folderId !== undefined) payload.folderId = updates.folderId;
 
     if (Object.keys(payload).length === 0) return;
 
-    sync(neon.from('documents').update(payload).eq('id', id), 'salvar o documento');
+    sync(api.documents.update(id, payload), 'salvar o documento');
   };
 
   const deleteDocument = (id: string): void => {
@@ -249,7 +191,7 @@ export const DocumentsProvider: React.FC<DocumentsProviderProps> = ({ children }
       return filtered;
     });
 
-    sync(neon.from('documents').delete().eq('id', id), 'excluir o documento');
+    sync(api.documents.remove(id), 'excluir o documento');
   };
 
   const selectDocument = (id: string): void => {
@@ -269,25 +211,19 @@ export const DocumentsProvider: React.FC<DocumentsProviderProps> = ({ children }
       setSelectedDocument((prev) => (prev ? { ...prev, folderId } : null));
     }
 
-    sync(neon.from('documents').update({ folder_id: folderId }).eq('id', id), 'mover o documento');
+    sync(api.documents.update(id, { folderId }), 'mover o documento');
   };
 
   const createFolder = async (name = 'Nova Pasta'): Promise<Folder | null> => {
-    const { data, error: insertError } = await neon
-      .from('folders')
-      .insert({ name })
-      .select()
-      .single();
-
-    if (insertError || !data) {
-      console.error('Erro ao criar pasta:', insertError);
-      setError(`Não foi possível criar a pasta: ${insertError?.message ?? 'erro desconhecido'}`);
+    try {
+      const newFolder = await api.folders.create({ name });
+      setFolders((prev) => [...prev, newFolder]);
+      return newFolder;
+    } catch (err) {
+      console.error('Erro ao criar pasta:', (err as Error).message);
+      setError(`Não foi possível criar a pasta: ${(err as Error).message}`);
       return null;
     }
-
-    const newFolder = toFolder(data);
-    setFolders((prev) => [...prev, newFolder]);
-    return newFolder;
   };
 
   const renameFolder = (id: string, name: string): void => {
@@ -298,12 +234,12 @@ export const DocumentsProvider: React.FC<DocumentsProviderProps> = ({ children }
       prev.map((folder) => (folder.id === id ? { ...folder, name: trimmed } : folder))
     );
 
-    sync(neon.from('folders').update({ name: trimmed }).eq('id', id), 'renomear a pasta');
+    sync(api.folders.rename(id, trimmed), 'renomear a pasta');
   };
 
   /**
-   * Remove a pasta. Os documentos dela não são excluídos: a FK está declarada
-   * com ON DELETE SET NULL, então eles voltam para fora de qualquer pasta.
+   * Remove a pasta. Os documentos dela não são excluídos: no banco a FK zera o
+   * folder_id deles, então eles voltam para fora de qualquer pasta.
    */
   const deleteFolder = (id: string): void => {
     setDocuments((prev) =>
@@ -316,7 +252,7 @@ export const DocumentsProvider: React.FC<DocumentsProviderProps> = ({ children }
 
     setFolders((prev) => prev.filter((folder) => folder.id !== id));
 
-    sync(neon.from('folders').delete().eq('id', id), 'excluir a pasta');
+    sync(api.folders.remove(id), 'excluir a pasta');
   };
 
   return (
