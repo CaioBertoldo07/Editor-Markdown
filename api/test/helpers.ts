@@ -24,6 +24,8 @@ export function testConfig(databaseUrl: string): Config {
     secureCookies: true,
     stagingAccessKey: null,
     requestDiagnostics: false,
+    proxySecret: null,
+    proxyRequired: false,
   };
 }
 
