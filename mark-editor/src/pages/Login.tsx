@@ -5,10 +5,9 @@ import AppIcon from '../components/AppIcon/AppIcon';
 import './Login.css';
 
 const Login = () => {
-  const { signIn, signUp } = useAuth();
+  // Cadastro público temporariamente desligado no servidor: só login.
+  const { signIn } = useAuth();
 
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
-  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -19,29 +18,13 @@ const Login = () => {
     e.preventDefault();
     setError(null);
 
-    if (mode === 'signup' && password.length < 8) {
-      setError('A senha precisa ter pelo menos 8 caracteres.');
-      return;
-    }
-
     setIsSubmitting(true);
 
-    const message =
-      mode === 'signup'
-        ? await signUp(name.trim() || email.split('@')[0], email.trim(), password)
-        : await signIn(email.trim(), password);
+    const message = await signIn(email.trim().toLowerCase(), password);
 
     setIsSubmitting(false);
 
     if (message) setError(message);
-  };
-
-  const toggleMode = () => {
-    setMode((prev) => (prev === 'signin' ? 'signup' : 'signin'));
-    setError(null);
-    // Trocar de tela deixa a senha visível de novo escondida: quem estava
-    // conferindo o que digitou não pediu para continuar exibindo.
-    setShowPassword(false);
   };
 
   return (
@@ -54,25 +37,8 @@ const Login = () => {
         <div className="login-brand">
           <AppIcon className="login-logo" size={72} />
           <h1>Editor Markdown</h1>
-          <p>
-            {mode === 'signin'
-              ? 'Entre para acessar seus documentos de qualquer lugar'
-              : 'Crie sua conta para sincronizar seus documentos'}
-          </p>
+          <p>Entre para acessar seus documentos de qualquer lugar</p>
         </div>
-
-        {mode === 'signup' && (
-          <label className="login-field">
-            <span>Nome</span>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Como quer ser chamado"
-              autoComplete="name"
-            />
-          </label>
-        )}
 
         <label className="login-field">
           <span>E-mail</span>
@@ -93,8 +59,8 @@ const Login = () => {
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder={mode === 'signup' ? 'Mínimo de 8 caracteres' : '••••••••'}
-              autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+              placeholder="••••••••"
+              autoComplete="current-password"
               required
             />
 
@@ -126,15 +92,9 @@ const Login = () => {
         {error && <div className="login-error">{error}</div>}
 
         <button type="submit" className="login-submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Aguarde...' : mode === 'signin' ? 'Entrar' : 'Criar conta'}
+          {isSubmitting ? 'Aguarde...' : 'Entrar'}
         </button>
 
-        <p className="login-switch">
-          {mode === 'signin' ? 'Ainda não tem conta?' : 'Já tem uma conta?'}{' '}
-          <button type="button" onClick={toggleMode}>
-            {mode === 'signin' ? 'Criar conta' : 'Entrar'}
-          </button>
-        </p>
       </form>
 
       <p className="login-credit">Feito por Caio Bertoldo</p>
