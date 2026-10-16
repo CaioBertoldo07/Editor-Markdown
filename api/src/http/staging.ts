@@ -16,8 +16,10 @@ const digest = (value: string) => createHash('sha256').update(value).digest();
  */
 export function stagingGate(accessKey: string) {
   const expected = digest(accessKey);
-  return createMiddleware(async (c, next) => {
+  return createMiddleware<{ Variables: { viaProxy?: boolean } }>(async (c, next) => {
     if (c.req.method === 'GET' && c.req.path === '/api/health') return next();
+    // Chamadas do proxy da Vercel (Preview -> staging) já provaram o segredo do proxy.
+    if (c.get('viaProxy')) return next();
     const provided = c.req.header('x-staging-key');
     if (!provided || !timingSafeEqual(digest(provided), expected)) {
       return c.json({ error: 'not_found' }, 404);
