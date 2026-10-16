@@ -5,6 +5,7 @@ import type { Auth } from './auth/auth.js';
 import { createLoginThrottle, type LoginThrottleOptions } from './auth/login-throttle.js';
 import { requireSession, type AuthVariables } from './auth/session.js';
 import { handleError } from './http/errors.js';
+import { proxyTrust, type ProxyOptions, type ProxyVariables } from './http/proxy.js';
 import { requestDiagnostics, stagingGate } from './http/staging.js';
 import { documentsRoutes } from './routes/documents.js';
 import { foldersRoutes } from './routes/folders.js';
@@ -13,6 +14,8 @@ export type AppDeps = {
   pool: pg.Pool;
   auth: Auth;
   loginThrottle?: LoginThrottleOptions;
+  /** Proxy confiável da Vercel (segredo compartilhado + IP real do cliente). */
+  proxy?: ProxyOptions | null;
   /** Só staging: chave de acesso e diagnóstico de cabeçalhos. */
   staging?: {
     accessKey: string | null;
@@ -22,14 +25,16 @@ export type AppDeps = {
   };
 };
 
-export function createApp({ pool, auth, loginThrottle, staging }: AppDeps) {
-  const app = new Hono<{ Variables: AuthVariables }>();
+export function createApp({ pool, auth, loginThrottle, staging, proxy }: AppDeps) {
+  const app = new Hono<{ Variables: AuthVariables & ProxyVariables }>();
 
   app.use('*', secureHeaders());
   app.use('/api/*', async (c, next) => {
     await next();
     c.header('Cache-Control', 'no-store');
   });
+  // Antes de tudo: decide se a chamada veio do proxy da Vercel e fixa o IP do cliente.
+  if (proxy) app.use('*', proxyTrust(proxy));
   if (staging?.accessKey) app.use('*', stagingGate(staging.accessKey));
 
   app.get('/api/health', async (c) => {

@@ -10,6 +10,9 @@ const auth = createAuth(config, pool);
 const app = createApp({
   pool,
   auth,
+  proxy: config.proxySecret
+    ? { secret: config.proxySecret, required: config.proxyRequired, ipAddressHeaders: config.ipAddressHeaders }
+    : null,
   staging: {
     accessKey: config.stagingAccessKey,
     diagnostics: config.requestDiagnostics,
@@ -18,6 +21,7 @@ const app = createApp({
   },
 });
 
+if (config.proxySecret) console.log(`[api] proxy confiável ligado${config.proxyRequired ? ' (obrigatório)' : ''}`);
 if (config.stagingAccessKey) console.log('[api] modo staging: x-staging-key obrigatório (exceto /api/health)');
 if (config.requestDiagnostics) console.log('[api] diagnóstico de cabeçalhos ligado em /api/_diag/request');
 

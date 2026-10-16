@@ -43,6 +43,19 @@ const envSchema = z.object({
     .string()
     .default('')
     .refine((v) => v === '' || v.length >= 32, 'STAGING_ACCESS_KEY precisa de pelo menos 32 caracteres'),
+  /**
+   * Segredo compartilhado com o middleware da Vercel (cabeçalho x-proxy-secret).
+   * Com ele, o IP do rate limit vem de x-client-ip. Vazio = sem proxy confiável.
+   */
+  PROXY_SECRET: z
+    .string()
+    .default('')
+    .refine((v) => v === '' || v.length >= 32, 'PROXY_SECRET precisa de pelo menos 32 caracteres'),
+  /** true = só atende chamadas do proxy (exceto GET /api/health). Produção: true. */
+  PROXY_REQUIRED: z
+    .enum(['true', 'false', ''])
+    .default('false')
+    .transform((v) => v === 'true'),
   /** Só em staging: liga GET /api/_diag/request (cabeçalhos de proxy, IPs mascarados). */
   ENABLE_REQUEST_DIAGNOSTICS: z
     .enum(['true', 'false', ''])
@@ -65,6 +78,8 @@ export type Config = {
   secureCookies: boolean;
   stagingAccessKey: string | null;
   requestDiagnostics: boolean;
+  proxySecret: string | null;
+  proxyRequired: boolean;
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -75,6 +90,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   }
   const e = parsed.data;
   const origin = new URL(e.BETTER_AUTH_URL).origin;
+
+  if (e.PROXY_REQUIRED && !e.PROXY_SECRET) {
+    throw new Error('PROXY_REQUIRED=true exige PROXY_SECRET');
+  }
 
   if (e.NODE_ENV === 'production' && !origin.startsWith('https://')) {
     throw new Error('BETTER_AUTH_URL precisa ser https em produção');
@@ -94,5 +113,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     secureCookies: origin.startsWith('https://'),
     stagingAccessKey: e.STAGING_ACCESS_KEY || null,
     requestDiagnostics: e.ENABLE_REQUEST_DIAGNOSTICS,
+    proxySecret: e.PROXY_SECRET || null,
+    proxyRequired: e.PROXY_REQUIRED,
   };
 }
