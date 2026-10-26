@@ -1,4 +1,4 @@
-import { runMigrations, setApiRolePassword } from '../db/migrate.js';
+import { runMigrations, setApiRolePassword, setBackupRolePassword } from '../db/migrate.js';
 import { runStagingCheck } from './staging-check.js';
 import { runExecute, runInspect } from './transfer.js';
 
@@ -6,7 +6,7 @@ import { runExecute, runInspect } from './transfer.js';
  * Ponto de entrada do serviço de OPERAÇÕES (nunca da API). A tarefa vem de
  * OPS_TASK; o processo roda uma vez e termina.
  *
- *   migrate            migrations + LOGIN/senha do app_api
+ *   migrate            migrations + LOGIN/senha do app_api (e do app_backup, com BACKUP_DB_PASSWORD)
  *   staging-check      verificação completa do staging com dados fictícios
  *   transfer-inspect   leitura somente leitura do Neon (agregados, sem dados)
  *   transfer-execute   cópia Neon -> Railway (exige TRANSFER_CONFIRM)
@@ -32,6 +32,12 @@ async function main(): Promise<number> {
       console.log(`[ops] migrations aplicadas: ${result.applied.join(', ') || 'nenhuma'}; já existentes: ${result.skipped.length}`);
       await setApiRolePassword(url, required('APP_API_DB_PASSWORD'));
       console.log('[ops] LOGIN e senha do app_api definidos');
+      // Opcional: só onde existe o serviço de backup.
+      const backupPassword = process.env.BACKUP_DB_PASSWORD;
+      if (backupPassword) {
+        await setBackupRolePassword(url, backupPassword);
+        console.log('[ops] LOGIN e senha do app_backup definidos');
+      }
       return 0;
     }
     case 'staging-check': {

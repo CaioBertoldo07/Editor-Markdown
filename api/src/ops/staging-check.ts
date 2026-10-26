@@ -107,11 +107,12 @@ export async function runStagingCheck(env: StagingCheckEnv, log: (l: string) => 
       expect(r!.v >= 180000 && r!.v < 190000, `versão ${r!.ver}`);
       return r!.ver;
     });
-    await attempt('4 migrations aplicadas', async () => {
+    await attempt('5 migrations aplicadas', async () => {
       const rows = await q<{ version: string }>('SELECT version FROM public.schema_migrations ORDER BY version');
       const names = rows.map((r) => r.version);
       expect(
-        JSON.stringify(names) === JSON.stringify(['001_roles_schemas.sql', '002_auth_tables.sql', '003_app_tables.sql', '004_rls.sql']),
+        JSON.stringify(names) ===
+          JSON.stringify(['001_roles_schemas.sql', '002_auth_tables.sql', '003_app_tables.sql', '004_rls.sql', '005_backup_role.sql']),
         names.join(',')
       );
     });
@@ -134,6 +135,27 @@ export async function runStagingCheck(env: StagingCheckEnv, log: (l: string) => 
       expect(!!r!.rolcanlogin, 'sem LOGIN');
       expect(!r!.member_owner, 'é membro de app_owner');
       const owned = await q(`SELECT 1 FROM pg_class c WHERE pg_get_userbyid(c.relowner) = 'app_api'`);
+      expect(owned.length === 0, 'é dono de objetos');
+    });
+    await attempt('app_backup só leitura', async () => {
+      const [r] = await q<Record<string, boolean>>(
+        `SELECT rolsuper, rolbypassrls, rolcreaterole, rolcreatedb, rolreplication,
+                pg_has_role('app_backup', 'pg_read_all_data', 'MEMBER') AS reads_all,
+                pg_has_role('app_backup', 'app_owner', 'MEMBER') AS member_owner
+         FROM pg_roles WHERE rolname = 'app_backup'`
+      );
+      expect(!!r, 'papel inexistente');
+      expect(!r!.rolsuper && !r!.rolcreaterole && !r!.rolcreatedb && !r!.rolreplication, 'atributos administrativos');
+      expect(!!r!.rolbypassrls && !!r!.reads_all, 'sem leitura completa');
+      expect(!r!.member_owner, 'é membro de app_owner');
+      const writable = await q(
+        `SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE c.relkind = 'r' AND n.nspname IN ('app', 'app_auth', 'public')
+           AND (has_table_privilege('app_backup', c.oid, 'INSERT') OR has_table_privilege('app_backup', c.oid, 'UPDATE')
+             OR has_table_privilege('app_backup', c.oid, 'DELETE') OR has_table_privilege('app_backup', c.oid, 'TRUNCATE'))`
+      );
+      expect(writable.length === 0, 'pode gravar em tabelas');
+      const owned = await q(`SELECT 1 FROM pg_class c WHERE pg_get_userbyid(c.relowner) = 'app_backup'`);
       expect(owned.length === 0, 'é dono de objetos');
     });
     await attempt('RLS habilitado e forçado + policies', async () => {

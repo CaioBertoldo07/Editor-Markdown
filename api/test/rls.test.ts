@@ -1,7 +1,8 @@
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { inject } from 'vitest';
+import { setBackupRolePassword } from '../src/db/migrate.js';
 import { withUser } from '../src/db/pool.js';
 import { createUser, makeTestApp, type FakeUser, type TestContext } from './helpers.js';
 
@@ -182,5 +183,48 @@ describe('isolamento da conexão do app_api', () => {
     url.password = 'senha-errada';
     const client = new pg.Client({ connectionString: url.toString() });
     await expect(client.connect()).rejects.toBeTruthy();
+  });
+});
+
+describe('papel do backup (app_backup)', () => {
+  let backup: pg.Client;
+
+  beforeAll(async () => {
+    const password = randomBytes(24).toString('hex');
+    await setBackupRolePassword(inject('adminUrl'), password);
+    const url = new URL(inject('adminUrl'));
+    url.username = 'app_backup';
+    url.password = password;
+    backup = new pg.Client({ connectionString: url.toString() });
+    await backup.connect();
+  });
+
+  afterAll(async () => {
+    await backup.end();
+  });
+
+  it('não é superusuário nem dono de nada, mas ignora o RLS (exigência do pg_dump)', async () => {
+    const { rows } = await backup.query(
+      `SELECT r.rolsuper, r.rolbypassrls, r.rolcreaterole, r.rolcreatedb,
+              (SELECT count(*)::int FROM pg_class c WHERE c.relowner = r.oid) AS owned
+       FROM pg_roles r WHERE r.rolname = current_user`
+    );
+    expect(rows[0]).toEqual({ rolsuper: false, rolbypassrls: true, rolcreaterole: false, rolcreatedb: false, owned: 0 });
+  });
+
+  it('lê os documentos de todos os usuários (o RLS forçado não esconde nada do backup)', async () => {
+    const { rows } = await backup.query('SELECT id FROM app.documents WHERE id = ANY($1)', [[aDoc, bDoc]]);
+    expect(rows.map((r) => r.id).sort()).toEqual([aDoc, bDoc].sort());
+  });
+
+  it('não grava, não altera e não apaga nada', async () => {
+    await expect(backup.query(`INSERT INTO app.folders (user_id, name) VALUES ($1, 'x')`, [a.id])).rejects.toMatchObject({
+      code: '42501',
+    });
+    await expect(backup.query(`UPDATE app.documents SET title = 'x' WHERE id = $1`, [aDoc])).rejects.toMatchObject({
+      code: '42501',
+    });
+    await expect(backup.query('DELETE FROM app_auth.session')).rejects.toMatchObject({ code: '42501' });
+    await expect(backup.query('TRUNCATE app.documents')).rejects.toMatchObject({ code: '42501' });
   });
 });

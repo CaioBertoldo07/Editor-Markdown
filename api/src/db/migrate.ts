@@ -98,6 +98,19 @@ export async function setApiRolePassword(connectionString: string, password: str
   }
 }
 
+/** Libera o LOGIN do app_backup (só leitura, usado pelo pg_dump) com a senha informada. */
+export async function setBackupRolePassword(connectionString: string, password: string): Promise<void> {
+  if (password.length < 24) throw new Error('A senha do app_backup precisa de pelo menos 24 caracteres');
+  const client = new pg.Client({ connectionString });
+  await client.connect();
+  try {
+    const literal = client.escapeLiteral(password);
+    await client.query(`ALTER ROLE app_backup WITH LOGIN PASSWORD ${literal} CONNECTION LIMIT 3`);
+  } finally {
+    await client.end();
+  }
+}
+
 async function main(): Promise<void> {
   const url = process.env.MIGRATION_DATABASE_URL;
   if (!url) throw new Error('Defina MIGRATION_DATABASE_URL (conexão de administrador)');
