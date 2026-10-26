@@ -86,7 +86,10 @@ describe('fluxo do dono', () => {
 
     const del = await request(ctx, 'DELETE', `/api/documents/${doc.id}`, { cookie: aliceCookie });
     expect(del.status).toBe(204);
+    expect(await del.text()).toBe('');
     expect(await dbDoc(doc.id)).toBeUndefined();
+    // Recarregar a página = nova listagem: o documento não volta.
+    expect((await listDocs(aliceCookie)).map((d) => d.id)).not.toContain(doc.id);
     expect((await request(ctx, 'DELETE', `/api/documents/${doc.id}`, { cookie: aliceCookie })).status).toBe(404);
   });
 

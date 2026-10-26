@@ -44,6 +44,7 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
     createDocument,
     importDocuments,
     deleteDocument,
+    deletingIds,
     isLoading,
     selectDocument,
     moveDocument,
@@ -255,16 +256,19 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
 
   // --- Exclusão ---
 
-  const handleConfirmDelete = () => {
-    if (deleteTarget?.kind === 'document') {
-      const wasSelected = selectedDocument?.id === deleteTarget.id;
-      deleteDocument(deleteTarget.id);
-      if (wasSelected) navigate('/');
-    } else if (deleteTarget?.kind === 'folder') {
-      deleteFolder(deleteTarget.id);
-    }
-
+  const handleConfirmDelete = async () => {
+    const target = deleteTarget;
     setDeleteTarget(null);
+
+    if (target?.kind === 'document') {
+      const wasSelected = selectedDocument?.id === target.id;
+      // Só sai do documento depois que o servidor confirmar a exclusão.
+      const outcome = await deleteDocument(target.id);
+      const gone = outcome.status === 'deleted' || outcome.status === 'already_deleted';
+      if (gone && wasSelected) navigate('/');
+    } else if (target?.kind === 'folder') {
+      deleteFolder(target.id);
+    }
   };
 
   // --- Drag & drop ---
@@ -417,12 +421,15 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
     }
   };
 
-  const renderDocument = (doc: Document) => (
+  const renderDocument = (doc: Document) => {
+    const isDeleting = deletingIds.includes(doc.id);
+    return (
     <div
       key={doc.id}
       className={`document-item ${selectedDocument?.id === doc.id ? 'selected' : ''} ${
         draggedDocId === doc.id ? 'dragging' : ''
-      }`}
+      } ${isDeleting ? 'deleting' : ''}`}
+      aria-busy={isDeleting || undefined}
       onClick={() => handleSelectDocument(doc.id)}
       draggable
       onDragStart={(e) => handleDragStart(e, doc.id)}
@@ -431,7 +438,11 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
       <div className="document-content">
         <h3 className="document-title">{doc.title}</h3>
         <div className="document-meta">
-          <span className="document-date">{formatDate(doc.updatedAt)}</span>
+          {isDeleting ? (
+            <span className="document-deleting">Excluindo…</span>
+          ) : (
+            <span className="document-date">{formatDate(doc.updatedAt)}</span>
+          )}
           <span className="document-preview">
             {doc.content.substring(0, 50) || 'Documento vazio'}
           </span>
@@ -456,11 +467,13 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
 
         <button
           className="btn-delete"
+          disabled={isDeleting}
           onClick={(e) => {
             e.stopPropagation();
+            if (isDeleting) return;
             setDeleteTarget({ kind: 'document', id: doc.id, name: doc.title });
           }}
-          title="Excluir documento"
+          title={isDeleting ? 'Excluindo…' : 'Excluir documento'}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <polyline points="3 6 5 6 21 6"></polyline>
@@ -469,7 +482,8 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
         </button>
       </div>
     </div>
-  );
+    );
+  };
 
   return (
     <>

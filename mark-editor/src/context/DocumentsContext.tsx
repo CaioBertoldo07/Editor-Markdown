@@ -1,7 +1,9 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import type { ReactNode } from 'react';
 import type { Document, Folder } from '../types/document';
 import { api } from '../lib/api';
+import { createDocumentDeleter } from '../lib/documentDeletion';
+import type { DeleteOutcome } from '../lib/documentDeletion';
 import { useAuth } from './AuthContext';
 import { hasMigrated, migrateLocalData } from '../utils/migration';
 import { parseImportFiles } from '../utils/import';
@@ -20,7 +22,10 @@ interface DocumentsContextType {
   /** Cria documentos a partir de arquivos .md enviados pelo usuário */
   importDocuments: (files: File[], folderId?: string | null) => Promise<ImportSummary>;
   updateDocument: (id: string, updates: Partial<Document>) => void;
-  deleteDocument: (id: string) => void;
+  /** Exclui no servidor e só então tira o documento da lista */
+  deleteDocument: (id: string) => Promise<DeleteOutcome>;
+  /** Documentos com exclusão em andamento (ainda na lista, aguardando o servidor) */
+  deletingIds: string[];
   selectDocument: (id: string) => void;
   moveDocument: (id: string, folderId: string | null) => void;
   createFolder: (name?: string) => Promise<Folder | null>;
@@ -42,6 +47,8 @@ export const DocumentsProvider: React.FC<DocumentsProviderProps> = ({ children }
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deletingIds, setDeletingIds] = useState<string[]>([]);
+  const deleterRef = useRef(createDocumentDeleter(api.documents));
 
   const dismissError = useCallback(() => setError(null), []);
 
@@ -180,18 +187,27 @@ export const DocumentsProvider: React.FC<DocumentsProviderProps> = ({ children }
     sync(api.documents.update(id, payload), 'salvar o documento');
   };
 
-  const deleteDocument = (id: string): void => {
-    setDocuments((prev) => {
-      const filtered = prev.filter((doc) => doc.id !== id);
+  /**
+   * Exclusão confirmada: o documento fica na lista (marcado em deletingIds)
+   * até o servidor confirmar. Em caso de erro ele simplesmente continua lá.
+   */
+  const deleteDocument = async (id: string): Promise<DeleteOutcome> => {
+    setDeletingIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+    let outcome: DeleteOutcome;
+    try {
+      outcome = await deleterRef.current(id);
+    } finally {
+      setDeletingIds((prev) => prev.filter((pending) => pending !== id));
+    }
 
-      if (selectedDocument?.id === id) {
-        setSelectedDocument(filtered[0] || null);
-      }
-
-      return filtered;
-    });
-
-    sync(api.documents.remove(id), 'excluir o documento');
+    if (outcome.status === 'deleted' || outcome.status === 'already_deleted') {
+      setDocuments((prev) => prev.filter((doc) => doc.id !== id));
+      setSelectedDocument((prev) => (prev?.id === id ? null : prev));
+    } else if (outcome.status === 'not_deleted' || outcome.status === 'unknown') {
+      console.error('Erro ao excluir o documento:', outcome.message);
+      setError(outcome.message);
+    }
+    return outcome;
   };
 
   const selectDocument = (id: string): void => {
@@ -268,6 +284,7 @@ export const DocumentsProvider: React.FC<DocumentsProviderProps> = ({ children }
         importDocuments,
         updateDocument,
         deleteDocument,
+        deletingIds,
         selectDocument,
         moveDocument,
         createFolder,

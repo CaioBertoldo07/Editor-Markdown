@@ -381,6 +381,16 @@
     opacity: 0.4;
 }
 
+/* Exclusão aguardando o servidor: o item continua visível até a confirmação */
+.document-item.deleting {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.document-deleting {
+    font-style: italic;
+}
+
 .document-item:hover {
     background: var(--bg-card);
     border-color: var(--border);
