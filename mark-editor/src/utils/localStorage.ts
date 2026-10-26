@@ -2,7 +2,7 @@ import type { Document, Folder } from '../types/document';
 import type { SortMode } from './sorting';
 
 /**
- * Leitura dos dados que ficaram no navegador antes da sincronização com o Neon.
+ * Leitura dos dados que ficaram no navegador antes da sincronização com o servidor.
  * Hoje só serve para a migração inicial (ver utils/migration.ts) — a fonte da
  * verdade é o banco. O estado das pastas recolhidas continua sendo local, já
  * que é preferência de cada dispositivo.

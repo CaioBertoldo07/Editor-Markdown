@@ -3,7 +3,7 @@ import './SyncError.css';
 
 /**
  * Avisa quando uma escrita no banco falha. Sem isso, uma alteração poderia
- * parecer salva na tela e nunca ter chegado ao Neon.
+ * parecer salva na tela e nunca ter chegado ao servidor.
  */
 const SyncError = () => {
   const { error, dismissError } = useDocuments();

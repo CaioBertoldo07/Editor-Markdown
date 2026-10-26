@@ -1,0 +1,4 @@
+# Os scripts rodam no contêiner Linux: sempre LF, mesmo em clones no Windows.
+*.sh  text eol=lf
+*.sql text eol=lf
+Dockerfile text eol=lf

@@ -10,7 +10,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@neondatabase/neon-js": "^0.7.0-beta",
     "jszip": "^3.10.1",
     "mermaid": "^11.17.2",
     "react": "^19.2.0",

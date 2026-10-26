@@ -1,0 +1,7 @@
+# Nunca versionar backups, dumps ou segredos
+*.dump
+*.gpg
+*.tar
+*.sql.gz
+.env
+.env.*
