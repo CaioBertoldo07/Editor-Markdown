@@ -81,6 +81,10 @@ const Mermaid: React.FC<MermaidProps> = ({ chart }) => {
       mermaid.initialize({
         startOnLoad: false,
         securityLevel: 'strict',
+        // O mermaid 12 trocou o layout e o visual padrão; estes dois mantêm os
+        // diagramas dos documentos existentes com a mesma aparência de antes.
+        layout: 'dagre',
+        look: 'classic',
         theme: theme === 'dark' ? 'dark' : 'default',
         fontFamily: 'inherit',
         themeVariables: bgMain ? { edgeLabelBackground: bgMain } : undefined,
