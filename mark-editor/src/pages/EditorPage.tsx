@@ -15,7 +15,7 @@ import './EditorPage.css';
 
 const EditorPage = () => {
   const { id } = useParams<{ id: string }>();
-  const { selectedDocument, selectDocument, updateDocument, folders, isLoading } = useDocuments();
+  const { documents, selectedDocument, selectDocument, updateDocument, folders, isLoading } = useDocuments();
   const navigate = useNavigate();
   
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -59,12 +59,14 @@ const EditorPage = () => {
     }
   }, [id, selectDocument]);
 
-  // Redirecionar se não houver documento selecionado
+  // Redirecionar só se o documento não existe (ou deixou de existir) na lista.
+  // Olhar para selectedDocument aqui falhava ao abrir /doc/:id direto: no
+  // render em que a carga termina, a seleção acima ainda não foi aplicada.
   useEffect(() => {
-    if (!isLoading && !selectedDocument && id) {
+    if (!isLoading && id && !documents.some((doc) => doc.id === id)) {
       navigate('/', { replace: true });
     }
-  }, [isLoading, selectedDocument, id, navigate]);
+  }, [isLoading, documents, id, navigate]);
 
   // Atualizar campos locais quando o documento mudar
   // CORRIGIDO: Agora observa o selectedDocument completo e seu conteúdo
