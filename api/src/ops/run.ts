@@ -1,5 +1,6 @@
 import { runMigrations, setApiRolePassword, setBackupRolePassword } from '../db/migrate.js';
 import { runStagingCheck } from './staging-check.js';
+import { runStagingSeed } from './staging-seed.js';
 import { runExecute, runInspect } from './transfer.js';
 
 /**
@@ -8,6 +9,7 @@ import { runExecute, runInspect } from './transfer.js';
  *
  *   migrate            migrations + LOGIN/senha do app_api (e do app_backup, com BACKUP_DB_PASSWORD)
  *   staging-check      verificação completa do staging com dados fictícios
+ *   staging-seed       usuários e documentos sintéticos (só staging; recusa dados reais)
  *   transfer-inspect   leitura somente leitura do Neon (agregados, sem dados)
  *   transfer-execute   cópia Neon -> Railway (exige TRANSFER_CONFIRM)
  *   idle               não faz nada (estado seguro entre tarefas)
@@ -50,6 +52,13 @@ async function main(): Promise<number> {
       });
       return ok ? 0 : 1;
     }
+    case 'staging-seed':
+      await runStagingSeed({
+        adminUrl: required('MIGRATION_DATABASE_URL'),
+        password: required('STAGING_SEED_PASSWORD'),
+        environmentName: process.env.RAILWAY_ENVIRONMENT_NAME,
+      });
+      return 0;
     case 'transfer-inspect': {
       const r = await runInspect({ sourceUrl: required('NEON_DATABASE_URL'), targetUrl: required('MIGRATION_DATABASE_URL') });
       return r.problems.length === 0 ? 0 : 1;
