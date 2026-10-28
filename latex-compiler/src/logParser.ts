@@ -368,6 +368,11 @@ export function finalizeDiagnostics(all: Diagnostic[]): Diagnostic[] {
   const hasRealError = all.some((d) => d.severity === 'error' && !/^Emergency stop/.test(d.raw));
   for (const d of all) {
     if (hasRealError && /^Emergency stop|^==> Fatal error occurred/.test(d.raw)) continue;
+    // Com erro, o latexmk para antes das passagens que resolvem referências e
+    // citações: avisos de "não definida" seriam falsos alarmes.
+    if (hasRealError && d.severity === 'warning' && /(Reference|Citation) [`'][^']+' on page \d+ undefined|There were undefined references/.test(d.raw)) {
+      continue;
+    }
     const key = `${d.severity}|${d.file}|${d.line}|${d.message}`;
     if (seen.has(key)) continue;
     seen.add(key);

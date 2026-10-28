@@ -5,6 +5,7 @@
  *   docker build --target test -t latex-compiler-test latex-compiler
  *   docker run --rm -e LATEX_INTEGRATION=1 latex-compiler-test
  */
+import { spawnSync } from 'node:child_process';
 import { crc32, deflateSync } from 'node:zlib';
 import { readdir } from 'node:fs/promises';
 import { serve } from '@hono/node-server';
@@ -224,6 +225,18 @@ Tabela~\ref{tab:a}.`;
     const r = await compile([text('main.tex', '\\documentclass{article}\n\\def\\x{\\x}\n\\begin{document}\\x\\end{document}\n')], 'main.tex', {}, controller.signal);
     expect(r.status).toBe('cancelled');
     expect(Date.now() - started).toBeLessThan(10_000);
+  });
+
+  it('depois de cancelar ou estourar o tempo, não sobra processo do slot (nem zumbi)', async () => {
+    // Precisa de um init (tini) como PID 1 recolhendo os órfãos.
+    const slotProcesses = () =>
+      spawnSync('ps', ['-u', String(config.slotUidBase + 1), '-o', 'pid=,stat=,comm='], { encoding: 'utf8' }).stdout.trim();
+    let remaining = slotProcesses();
+    for (let i = 0; i < 20 && remaining; i++) {
+      await new Promise((r) => setTimeout(r, 100));
+      remaining = slotProcesses();
+    }
+    expect(remaining).toBe('');
   });
 
   it('saída gigante é cortada pelo limite de disco', async () => {

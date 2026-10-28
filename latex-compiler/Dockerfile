@@ -39,7 +39,7 @@ RUN apt-get update \
       texlive-science texlive-pictures texlive-bibtex-extra biber \
       texlive-publishers texlive-xetex texlive-luatex texlive-plain-generic \
       texlive-lang-portuguese texlive-lang-english texlive-lang-spanish texlive-lang-european \
-      latexmk libseccomp2 procps fontconfig \
+      latexmk libseccomp2 procps fontconfig tini \
  && rm -rf /var/lib/apt/lists/* /usr/share/doc/* /usr/share/man/*
 
 # Política do kpathsea para todos os programas TeX (também repetida nas
@@ -66,6 +66,11 @@ RUN for i in 1 2 3 4 5 6 7 8; do \
 COPY --from=sandbox --chmod=0755 /sandbox-exec /usr/local/bin/sandbox-exec
 COPY --chmod=0644 tex/latexmkrc /etc/latex-compiler/latexmkrc
 ENV JOBS_DIR=/var/lib/latex-jobs
+
+# tini como PID 1: recolhe os processos do TeX mortos por cancelamento ou
+# tempo limite. Sem ele, viram zumbis do Node (PID 1) e esgotam o limite de
+# processos do UID do slot.
+ENTRYPOINT ["/usr/bin/tini", "--"]
 
 # Testes de integração com o TeX real (dependências de desenvolvimento).
 FROM tex AS test

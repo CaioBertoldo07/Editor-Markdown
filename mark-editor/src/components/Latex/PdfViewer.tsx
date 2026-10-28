@@ -51,15 +51,16 @@ const PdfViewer: React.FC<PdfViewerProps> = ({ data, emptyMessage }) => {
   // Posição a restaurar quando o PDF novo terminar de montar.
   const restoreRef = useRef<{ page: number; offset: number } | null>(null);
 
-  // Largura útil para "ajustar à largura".
+  // Largura útil para "ajustar à largura". A área de rolagem só existe quando
+  // há PDF, então o observador é ligado quando ela aparece.
+  const hasData = data !== null;
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     const observer = new ResizeObserver(() => setContainerWidth(el.clientWidth));
     observer.observe(el);
-    setContainerWidth(el.clientWidth);
     return () => observer.disconnect();
-  }, []);
+  }, [hasData]);
 
   const scale = (() => {
     if (zoom !== 'fit') return zoom;

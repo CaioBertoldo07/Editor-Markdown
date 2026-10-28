@@ -151,4 +151,13 @@ describe('finalização', () => {
     ]);
     expect(ds.map((d) => d.message)).toEqual(['e', 'w', 'i']);
   });
+
+  it('com erro, esconde avisos de referência indefinida (passagens não concluídas)', () => {
+    const base = { file: 'main.tex', line: 1, source: 'latex' as const };
+    const ref = { ...base, severity: 'warning' as const, message: 'r', raw: "LaTeX Warning: Reference `a' on page 1 undefined on input line 3." };
+    const other = { ...base, severity: 'warning' as const, message: 'o', raw: 'Package hyperref Warning: x' };
+    expect(finalizeDiagnostics([ref, other]).map((d) => d.message)).toEqual(['r', 'o']);
+    const err = { ...base, severity: 'error' as const, message: 'e', raw: 'Undefined control sequence.' };
+    expect(finalizeDiagnostics([err, ref, other]).map((d) => d.message)).toEqual(['e', 'o']);
+  });
 });

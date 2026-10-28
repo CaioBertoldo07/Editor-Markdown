@@ -295,7 +295,10 @@ const LatexWorkspace: React.FC<LatexWorkspaceProps> = ({ doc, isPreviewExpanded,
           <span className={`latex-status tone-${phase.tone}`} role="status" aria-live="polite">
             {phase.tone === 'busy' && <span className="latex-spinner" aria-hidden="true" />}
             {phase.label}
-            {cstate.lastJob?.durationMs && !compiling ? <span className="latex-status-time">{(cstate.lastJob.durationMs / 1000).toFixed(1)} s</span> : null}
+            {/* Tempo só quando é o desta compilação (não o da anterior, após cancelar). */}
+            {cstate.lastJob?.durationMs && cstate.phase === cstate.lastJob.status ? (
+              <span className="latex-status-time">{(cstate.lastJob.durationMs / 1000).toFixed(1)} s</span>
+            ) : null}
           </span>
 
           {compiling ? (
