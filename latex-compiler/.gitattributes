@@ -1,0 +1,3 @@
+# Tudo aqui roda no contêiner Linux: sempre LF, mesmo em clones no Windows
+# (um CR no 99-sandbox.cnf ou no latexmkrc mudaria a configuração do TeX).
+* text=auto eol=lf

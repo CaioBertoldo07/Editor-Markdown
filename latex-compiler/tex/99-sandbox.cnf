@@ -1,0 +1,21 @@
+% Política de segurança do compilador do Editor Markdown.
+% Sem \write18 (nem a lista restrita de comandos: f desliga as duas).
+shell_escape = f
+% p = "paranoid": sem arquivos ocultos, sem caminhos absolutos e sem ../ —
+% leitura e escrita ficam no diretório da compilação (a árvore do TeX continua
+% acessível pela busca do kpathsea). O LuaLaTeX recebe openin_any=r pelo
+% ambiente (o luaotfload abre arquivos da árvore por caminho absoluto).
+parse_first_line = f
+openin_any = p
+openout_any = p
+% Sem geração de fontes/formatos sob demanda (scripts mktex*).
+MKTEXPK = 0
+MKTEXTFM = 0
+MKTEXMF = 0
+MKOCP = 0
+MKOFM = 0
+MKTEXFMT = 0
+% Linhas longas no log (facilita localizar arquivo e linha dos erros).
+max_print_line = 10000
+error_line = 254
+half_error_line = 238
