@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDocuments } from '../context/DocumentsContext';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, lazy, Suspense } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
 import DocumentList from '../components/DocumentList/DocumentList';
 import Toolbar from '../components/Toolbar/Toolbar';
@@ -12,6 +12,9 @@ import MobileMenu from '../components/MobileMenu/MobileMenu';
 import UserMenu from '../components/UserMenu/UserMenu';
 import FullScreenLoader from '../components/FullScreenLoader/FullScreenLoader';
 import './EditorPage.css';
+
+// Ambiente LaTeX (editor de código + prévia PDF): só é baixado ao abrir um projeto LaTeX.
+const LatexWorkspace = lazy(() => import('../components/Latex/LatexWorkspace'));
 
 const EditorPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -26,6 +29,9 @@ const EditorPage = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isPreviewFullscreen, setIsPreviewFullscreen] = useState(false);
   const [lastSaved, setLastSaved] = useState<string | null>(null);
+  // Estado de salvamento dos arquivos de um projeto LaTeX (vem do workspace).
+  const [latexSave, setLatexSave] = useState<{ saving: boolean; lastSaved: string | null }>({ saving: false, lastSaved: null });
+  const isLatex = selectedDocument?.kind === 'latex';
   
   const debouncedContent = useDebounce(localContent, 800);
 
@@ -81,7 +87,8 @@ const EditorPage = () => {
   // Autosave - CORRIGIDO: Adicionar verificação para evitar loop
   useEffect(() => {
     if (
-      selectedDocument && 
+      selectedDocument &&
+      selectedDocument.kind !== 'latex' &&
       debouncedContent !== selectedDocument.content &&
       debouncedContent !== '' // Evitar salvar vazio no primeiro render
     ) {
@@ -200,7 +207,10 @@ const EditorPage = () => {
           </div>
 
           <div className="header-right">
-            <SaveIndicator isSaving={isSaving} lastSaved={lastSaved} />
+            <SaveIndicator
+              isSaving={isLatex ? latexSave.saving : isSaving}
+              lastSaved={isLatex ? latexSave.lastSaved : lastSaved}
+            />
             <UserMenu />
             <button
               className="fullscreen-toggle"
@@ -219,20 +229,34 @@ const EditorPage = () => {
           </div>
         </div>
 
-        <Toolbar onInsert={handleInsertFormat} />
+        {isLatex ? (
+          <Suspense fallback={<FullScreenLoader message="Abrindo o projeto LaTeX..." />}>
+            <LatexWorkspace
+              key={selectedDocument.id}
+              doc={selectedDocument}
+              isPreviewExpanded={isPreviewFullscreen}
+              onTogglePreviewExpanded={togglePreviewFullscreen}
+              onSaveState={setLatexSave}
+            />
+          </Suspense>
+        ) : (
+          <>
+            <Toolbar onInsert={handleInsertFormat} />
 
-        <div className="editor-workspace">
-          <Editor 
-            content={localContent}
-            onChange={handleContentChange}
-            onInsertFormat={handleSetInsertCallback}
-          />
-          <Preview
-            content={localContent}
-            isFullscreen={isPreviewFullscreen}
-            onToggleFullscreen={togglePreviewFullscreen}
-          />
-        </div>
+            <div className="editor-workspace">
+              <Editor
+                content={localContent}
+                onChange={handleContentChange}
+                onInsertFormat={handleSetInsertCallback}
+              />
+              <Preview
+                content={localContent}
+                isFullscreen={isPreviewFullscreen}
+                onToggleFullscreen={togglePreviewFullscreen}
+              />
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

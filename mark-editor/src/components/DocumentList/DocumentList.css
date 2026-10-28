@@ -726,3 +726,100 @@
         display: none;
     }
 }
+
+/* --- Tipo do documento (Markdown x LaTeX) --- */
+
+.document-kind {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  vertical-align: 2px;
+  color: var(--latex-command);
+  background: color-mix(in srgb, var(--latex-command) 14%, transparent);
+}
+
+.create-menu-anchor {
+  position: relative;
+}
+
+.create-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 60;
+  width: 270px;
+  padding: 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn 0.15s ease-out;
+}
+
+/* Dentro de uma pasta o menu abre na própria linha, sem cobrir a lista. */
+.folder > .create-menu {
+  position: static;
+  width: auto;
+  margin: 4px 8px 6px 28px;
+}
+
+.create-menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-primary);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.create-menu button:hover,
+.create-menu button:focus-visible {
+  background: var(--accent-transparent);
+}
+
+.create-menu-icon {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-transparent);
+}
+
+.create-menu-icon-tex {
+  color: var(--latex-env);
+  background: color-mix(in srgb, var(--latex-env) 14%, transparent);
+}
+
+.create-menu-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.create-menu-text strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.create-menu-text small {
+  font-size: 11px;
+  color: var(--text-secondary);
+}

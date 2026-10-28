@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useDocuments } from '../../context/DocumentsContext';
 import { useNavigate } from 'react-router-dom';
-import type { Document, Folder } from '../../types/document';
+import type { Document, DocumentKind, Folder } from '../../types/document';
 import {
   loadCollapsedFolders,
   saveCollapsedFolders,
@@ -18,6 +18,9 @@ import { sortDocuments, sortFolders } from '../../utils/sorting';
 import type { SortMode } from '../../utils/sorting';
 import { downloadDocument, downloadFolderAsZip } from '../../utils/download';
 import { IMPORT_ACCEPT, filesFromDrop, isFileDrag } from '../../utils/import';
+
+/** Markdown (.md...) e LaTeX (.tex, projeto .zip, .bib, .sty e imagens que acompanham um .tex). */
+const ACCEPT = `${IMPORT_ACCEPT},.tex,.ltx,.zip,.bib,.sty,.cls,.bst,.png,.jpg,.jpeg,.pdf,.eps`;
 import type { ImportSummary } from '../../utils/import';
 import AppIcon from '../AppIcon/AppIcon';
 import ConfirmModal from '../ConfirmModal/ConfirmModal';
@@ -64,6 +67,8 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
   // primeira vez tem uma espera perceptível.
   const [zippingFolderId, setZippingFolderId] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>(() => loadSortMode());
+  // Menu "novo documento": undefined = fechado, null = raiz, string = dentro da pasta
+  const [createMenuFor, setCreateMenuFor] = useState<string | null | undefined>(undefined);
   // Importação: o input fica escondido e é acionado pelo botão da barra.
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
@@ -129,6 +134,19 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
     };
   }, []);
 
+  // O menu de criação fecha com um clique fora ou com Esc.
+  useEffect(() => {
+    if (createMenuFor === undefined) return;
+    const close = () => setCreateMenuFor(undefined);
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close();
+    document.addEventListener('click', close);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('click', close);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [createMenuFor]);
+
   // O resumo da importação some sozinho; ele é um aviso, não uma pendência.
   useEffect(() => {
     if (!importSummary) return;
@@ -161,8 +179,9 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
 
   // --- Documentos ---
 
-  const handleCreateDocument = async (folderId: string | null = null) => {
-    const newDoc = await createDocument(folderId);
+  const handleCreateDocument = async (folderId: string | null = null, kind: DocumentKind = 'markdown') => {
+    setCreateMenuFor(undefined);
+    const newDoc = await createDocument(folderId, kind);
     if (!newDoc) return;
 
     if (folderId) expandFolder(folderId);
@@ -401,6 +420,26 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
     }
   };
 
+  /** Escolha do tipo ao criar: o tipo é definitivo (Markdown nunca vira LaTeX). */
+  const renderCreateMenu = (folderId: string | null) => (
+    <div className="create-menu" role="menu" onClick={(e) => e.stopPropagation()}>
+      <button role="menuitem" onClick={() => handleCreateDocument(folderId, 'markdown')}>
+        <span className="create-menu-icon">MD</span>
+        <span className="create-menu-text">
+          <strong>Documento Markdown</strong>
+          <small>Texto com prévia em tempo real</small>
+        </span>
+      </button>
+      <button role="menuitem" onClick={() => handleCreateDocument(folderId, 'latex')}>
+        <span className="create-menu-icon create-menu-icon-tex">TeX</span>
+        <span className="create-menu-text">
+          <strong>Projeto LaTeX</strong>
+          <small>Compila para PDF: fórmulas, bibliografia, imagens</small>
+        </span>
+      </button>
+    </div>
+  );
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -436,7 +475,12 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
       onDragEnd={handleDragEnd}
     >
       <div className="document-content">
-        <h3 className="document-title">{doc.title}</h3>
+        <h3 className="document-title">
+          {doc.kind === 'latex' && (
+            <span className="document-kind" title="Projeto LaTeX">TeX</span>
+          )}
+          {doc.title}
+        </h3>
         <div className="document-meta">
           {isDeleting ? (
             <span className="document-deleting">Excluindo…</span>
@@ -444,7 +488,9 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
             <span className="document-date">{formatDate(doc.updatedAt)}</span>
           )}
           <span className="document-preview">
-            {doc.content.substring(0, 50) || 'Documento vazio'}
+            {doc.kind === 'latex'
+              ? `Projeto LaTeX · ${doc.mainFile ?? 'main.tex'}`
+              : doc.content.substring(0, 50) || 'Documento vazio'}
           </span>
         </div>
       </div>
@@ -454,9 +500,15 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
           className="btn-download"
           onClick={(e) => {
             e.stopPropagation();
-            downloadDocument(doc);
+            if (doc.kind === 'latex') {
+              void import('../../latex/projectExport')
+                .then(({ downloadProjectZip }) => downloadProjectZip(doc))
+                .catch((err: Error) => console.error('Erro ao baixar o projeto:', err.message));
+            } else {
+              downloadDocument(doc);
+            }
           }}
-          title="Baixar como .md"
+          title={doc.kind === 'latex' ? 'Baixar projeto (.zip)' : 'Baixar como .md'}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -504,7 +556,7 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
           ref={fileInputRef}
           type="file"
           className="import-input"
-          accept={IMPORT_ACCEPT}
+          accept={ACCEPT}
           multiple
           onChange={handleFilesChosen}
         />
@@ -519,7 +571,7 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
               className="btn-create btn-import"
               onClick={() => openFilePicker(null)}
               disabled={isImporting}
-              title="Importar arquivos .md do computador"
+              title="Importar arquivos .md, .tex ou um projeto LaTeX (.zip)"
             >
               {isImporting ? (
                 <svg className="folder-action-spinner" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -544,16 +596,24 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
                 <line x1="15" y1="17" x2="21" y2="17"></line>
               </svg>
             </button>
-            <button
-              className="btn-create"
-              onClick={() => handleCreateDocument(null)}
-              title="Criar novo documento"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-            </button>
+            <div className="create-menu-anchor">
+              <button
+                className="btn-create"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCreateMenuFor((current) => (current === null ? undefined : null));
+                }}
+                title="Criar novo documento"
+                aria-haspopup="menu"
+                aria-expanded={createMenuFor === null}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              </button>
+              {createMenuFor === null && renderCreateMenu(null)}
+            </div>
           </div>
         </div>
 
@@ -579,7 +639,7 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
             <span>
               {typeof dropTarget === 'string'
                 ? `Solte para importar em "${folders.find((f) => f.id === dropTarget)?.name ?? 'pasta'}"`
-                : 'Solte os arquivos .md para importar'}
+                : 'Solte arquivos .md, .tex ou um projeto .zip para importar'}
             </span>
           </div>
         )}
@@ -634,7 +694,7 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
           ) : documents.length === 0 && folders.length === 0 ? (
             <div className="empty-state">
               <p>Nenhum documento criado</p>
-              <small>Clique no botão + para começar ou arraste arquivos .md para cá</small>
+              <small>Clique no botão + para criar um documento Markdown ou um projeto LaTeX, ou arraste arquivos .md, .tex ou .zip para cá</small>
             </div>
           ) : (
             <>
@@ -693,9 +753,11 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
                           className="folder-action"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleCreateDocument(folder.id);
+                            setCreateMenuFor((current) => (current === folder.id ? undefined : folder.id));
                           }}
                           title="Novo documento nesta pasta"
+                          aria-haspopup="menu"
+                          aria-expanded={createMenuFor === folder.id}
                         >
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                             <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -709,7 +771,7 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
                             openFilePicker(folder.id);
                           }}
                           disabled={isImporting}
-                          title="Importar arquivos .md para esta pasta"
+                          title="Importar arquivos .md, .tex ou .zip para esta pasta"
                         >
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -766,6 +828,8 @@ const DocumentList: React.FC<DocumentListProps> = ({ isOpen = true, onClose }) =
                         </button>
                       </div>
                     </div>
+
+                    {createMenuFor === folder.id && renderCreateMenu(folder.id)}
 
                     {!collapsed && (
                       <div className="folder-documents">

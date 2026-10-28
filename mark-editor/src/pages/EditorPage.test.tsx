@@ -37,7 +37,7 @@ const { default: EditorPage } = await import('./EditorPage');
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const DOC: Document = { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', title: 'Fictício', content: '', folderId: null, updatedAt: '2026-10-26T00:00:00.000Z' };
+const DOC: Document = { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', title: 'Fictício', content: '', folderId: null, updatedAt: '2026-10-26T00:00:00.000Z', kind: 'markdown', mainFile: null };
 
 let container: HTMLDivElement;
 let root: Root;

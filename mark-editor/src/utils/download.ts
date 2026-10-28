@@ -53,7 +53,7 @@ function uniqueName(desired: string, taken: Set<string>): string {
   return candidate;
 }
 
-function saveBlob(blob: Blob, fileName: string): void {
+export function saveBlob(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -82,7 +82,14 @@ export async function downloadFolderAsZip(folder: Folder, docs: Document[]): Pro
   const taken = new Set<string>();
 
   for (const doc of docs) {
-    zip.file(uniqueName(toFileName(doc.title), taken), doc.content);
+    if (doc.kind === 'latex') {
+      // Projeto LaTeX entra como subpasta, com todos os arquivos.
+      const { addProjectToZip } = await import('../latex/projectExport');
+      const folderName = uniqueName(toFileName(doc.title, ''), taken);
+      await addProjectToZip(zip.folder(folderName)!, doc.id);
+    } else {
+      zip.file(uniqueName(toFileName(doc.title), taken), doc.content);
+    }
   }
 
   const blob = await zip.generateAsync({ type: 'blob' });

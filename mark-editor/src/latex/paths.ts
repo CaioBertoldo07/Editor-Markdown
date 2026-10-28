@@ -35,8 +35,10 @@ const FORBIDDEN_NAMES = new Set(['latexmkrc', 'biber.conf', 'texmf.cnf', 'mktex.
 export type FileKind = 'text' | 'binary';
 
 export class InvalidPathError extends Error {
-  constructor(public readonly reason: string) {
+  readonly reason: string;
+  constructor(reason: string) {
     super(reason);
+    this.reason = reason;
   }
 }
 
