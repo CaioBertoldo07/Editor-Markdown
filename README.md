@@ -74,6 +74,27 @@ Editor de documentos Markdown com preview em tempo real, desenvolvido com React 
   - Feedback visual em todas as ações
   - Design moderno e elegante
 
+### 📐 Projetos LaTeX
+
+- Criação de **documento Markdown** ou **projeto LaTeX** (o tipo não muda depois)
+- Editor de código (CodeMirror 6): destaque, autocompletar de comandos, ambientes,
+  `\ref`, `\cite` e arquivos; busca e substituição; erros sublinhados
+- **Compilação real** em PDF (TeX Live + latexmk, BibTeX/Biber, pdfLaTeX, XeLaTeX,
+  LuaLaTeX) num serviço isolado, manual ou automática
+- Prévia do PDF ao lado (zoom, ajustar à largura, páginas, modo ampliado) e
+  painel de problemas com mensagens em português e link para a linha
+- Importação de `.tex` e de projetos `.zip`; exportação de `.tex`, `.zip` e PDF
+
+Detalhes técnicos e implantação: [`docs/latex.md`](docs/latex.md).
+
+| Atalho no editor LaTeX | Ação |
+|--------|------|
+| `Ctrl+Enter` / `Ctrl+S` | Compilar (salvando antes) |
+| `Ctrl+F` | Buscar e substituir |
+| `Ctrl+/` | Comentar linha |
+| `Ctrl+B` / `Ctrl+I` | `\textbf{}` / `\textit{}` |
+| `Ctrl+Space` | Autocompletar |
+
 ## ⌨️ Atalhos de Teclado
 
 | Atalho | Ação |
