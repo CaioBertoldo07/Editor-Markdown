@@ -4,7 +4,9 @@ import type pg from 'pg';
 import type { PoolClient } from 'pg';
 import type { AuthVariables } from '../auth/session.js';
 import { withUser } from '../db/pool.js';
-import { NotFoundError, parseBody } from '../http/errors.js';
+import { HTTPException } from 'hono/http-exception';
+import { BadRequestError, NotFoundError, parseBody } from '../http/errors.js';
+import { assertUserQuota, validPath } from '../latex/files.js';
 import { DOCUMENT_COLUMNS, toDocument, type DocumentRow } from '../http/mappers.js';
 import {
   LIMITS,
@@ -54,6 +56,33 @@ export function documentsRoutes(pool: pg.Pool) {
   router.post('/', limit(LIMITS.bodyMaxBytes), async (c) => {
     const userId = c.get('userId');
     const body = await parseBody(c, createDocumentBody);
+
+    if (body.kind === 'latex') {
+      const mainFile = validPath(body.mainFile ?? 'main.tex');
+      if (!mainFile.toLowerCase().endsWith('.tex')) throw new BadRequestError(['mainFile: precisa ser um arquivo .tex']);
+      const source = body.content ?? '';
+      const size = Buffer.byteLength(source, 'utf8');
+      if (size > LIMITS.latexTextFileMaxBytes) throw new HTTPException(413, { message: 'payload_too_large' });
+      const row = await withUser(pool, userId, async (client) => {
+        await assertOwnFolder(client, userId, body.folderId);
+        await assertUserQuota(client, userId, size);
+        // Projeto LaTeX: o conteúdo fica nos arquivos; `content` do documento fica vazio.
+        const result = await client.query<DocumentRow>(
+          `INSERT INTO app.documents (title, content, folder_id, kind, main_file)
+           VALUES (COALESCE($1, 'Novo Projeto LaTeX'), '', $2, 'latex', $3)
+           RETURNING ${DOCUMENT_COLUMNS}`,
+          [body.title ?? null, body.folderId ?? null, mainFile]
+        );
+        const doc = result.rows[0]!;
+        await client.query(
+          'INSERT INTO app.document_files (document_id, path, content, size_bytes) VALUES ($1, $2, $3, $4)',
+          [doc.id, mainFile, source, size]
+        );
+        return doc;
+      });
+      return c.json({ document: toDocument(row) }, 201);
+    }
+
     const row = await withUser(pool, userId, async (client) => {
       await assertOwnFolder(client, userId, body.folderId);
       const result = await client.query<DocumentRow>(
@@ -96,16 +125,41 @@ export function documentsRoutes(pool: pg.Pool) {
     const row = await withUser(pool, userId, async (client) => {
       if (body.folderId !== undefined) await assertOwnFolder(client, userId, body.folderId);
 
+      // Conteúdo e arquivo principal dependem do tipo, que nunca muda.
+      if (body.content !== undefined || body.mainFile !== undefined) {
+        const current = await client.query<{ kind: string }>(
+          'SELECT kind FROM app.documents WHERE id = $1 AND user_id = $2',
+          [id, userId]
+        );
+        const kind = current.rows[0]?.kind;
+        if (!kind) throw new NotFoundError('document_not_found');
+        if (kind === 'latex' && body.content !== undefined) {
+          throw new BadRequestError(['content: o conteúdo de um projeto LaTeX fica nos arquivos do projeto']);
+        }
+        if (body.mainFile !== undefined) {
+          if (kind !== 'latex') throw new BadRequestError(['mainFile: só existe em documentos LaTeX']);
+          const mainFile = validPath(body.mainFile);
+          if (!mainFile.toLowerCase().endsWith('.tex')) throw new BadRequestError(['mainFile: precisa ser um arquivo .tex']);
+          const exists = await client.query('SELECT 1 FROM app.document_files WHERE document_id = $1 AND path = $2', [
+            id,
+            mainFile,
+          ]);
+          if (exists.rowCount !== 1) throw new BadRequestError(['mainFile: o arquivo não existe no projeto']);
+          body.mainFile = mainFile;
+        }
+      }
+
       // Nomes de coluna fixos (nunca vindos do cliente); valores sempre parametrizados.
       const sets: string[] = [];
       const values: unknown[] = [];
-      const set = (column: 'title' | 'content' | 'folder_id', value: unknown) => {
+      const set = (column: 'title' | 'content' | 'folder_id' | 'main_file', value: unknown) => {
         values.push(value);
         sets.push(`${column} = $${values.length}`);
       };
       if (body.title !== undefined) set('title', body.title);
       if (body.content !== undefined) set('content', body.content);
       if (body.folderId !== undefined) set('folder_id', body.folderId);
+      if (body.mainFile !== undefined) set('main_file', body.mainFile);
       values.push(id, userId);
 
       const result = await client.query<DocumentRow>(

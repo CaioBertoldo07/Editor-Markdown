@@ -112,7 +112,7 @@ export async function runStagingCheck(env: StagingCheckEnv, log: (l: string) => 
       const names = rows.map((r) => r.version);
       expect(
         JSON.stringify(names) ===
-          JSON.stringify(['001_roles_schemas.sql', '002_auth_tables.sql', '003_app_tables.sql', '004_rls.sql', '005_backup_role.sql']),
+          JSON.stringify(['001_roles_schemas.sql', '002_auth_tables.sql', '003_app_tables.sql', '004_rls.sql', '005_backup_role.sql', '006_latex.sql']),
         names.join(',')
       );
     });
@@ -122,7 +122,7 @@ export async function runStagingCheck(env: StagingCheckEnv, log: (l: string) => 
          WHERE table_schema IN ('app', 'app_auth') AND table_type = 'BASE TABLE' ORDER BY 1`
       );
       const list = rows.map((r) => r.t).join(',');
-      expect(list === 'app.documents,app.folders,app_auth.account,app_auth.rateLimit,app_auth.session,app_auth.user,app_auth.verification', list);
+      expect(list === 'app.document_files,app.documents,app.folders,app_auth.account,app_auth.rateLimit,app_auth.session,app_auth.user,app_auth.verification', list);
     });
     await attempt('app_api sem privilégios administrativos', async () => {
       const [r] = await q<Record<string, boolean>>(
@@ -165,7 +165,7 @@ export async function runStagingCheck(env: StagingCheckEnv, log: (l: string) => 
          FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
          WHERE n.nspname = 'app' AND c.relkind = 'r' ORDER BY 1`
       );
-      expect(rows.length === 2 && rows.every((r) => r.rls && r.force && r.policies === '1'), JSON.stringify(rows));
+      expect(rows.length === 3 && rows.every((r) => r.rls && r.force && r.policies === '1'), JSON.stringify(rows));
     });
     await attempt('FK composta bloqueia pasta de outro usuário', async () => {
       await admin.query('BEGIN');

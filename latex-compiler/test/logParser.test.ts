@@ -91,6 +91,12 @@ describe('log do TeX', () => {
     expect(ds[1]!.message).toContain('shell-escape');
   });
 
+  it('aviso do epstopdf sobre shell-escape vira informação', () => {
+    const [d] = parseTexLog('(./main.tex\nPackage epstopdf Warning: Shell escape feature is not enabled.', files);
+    expect(d).toMatchObject({ severity: 'info' });
+    expect(d!.message).toContain('.eps');
+  });
+
   it('documento sem páginas', () => {
     const [a] = parseTexLog('(./main.tex)\nNo pages of output.', files);
     const [b] = parseTexLog('warning  (pdf backend): no pages of output.', files);

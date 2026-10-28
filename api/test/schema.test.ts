@@ -27,6 +27,7 @@ describe('migrations', () => {
       '003_app_tables.sql',
       '004_rls.sql',
       '005_backup_role.sql',
+      '006_latex.sql',
     ]);
   });
 

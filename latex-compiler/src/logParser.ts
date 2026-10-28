@@ -129,6 +129,10 @@ function friendlyWarning(raw: string, line: number | null): Friendly | null {
   }
   if (/There were undefined references/.test(raw)) return { message: 'Há referências ou citações não definidas no documento.' };
   if (/There were multiply-defined labels/.test(raw)) return null;
+  // Consequência da política de segurança (sem shell-escape), não do documento.
+  if (/Package epstopdf Warning: Shell escape feature is not enabled/.test(raw)) {
+    return { severity: 'info', message: 'Imagens .eps não são convertidas automaticamente (shell-escape desativado). Use PNG, JPG ou PDF.' };
+  }
   if (/Label\(s\) may have changed|Rerun to get/.test(raw)) return null;
   if (/Font shape .* (undefined|not available)/.test(raw) || /^LaTeX Font Warning/.test(raw)) {
     return { severity: 'info', message: `Fonte substituída: ${raw.replace(/^LaTeX Font Warning:\s*/, '')}` };

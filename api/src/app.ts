@@ -7,8 +7,11 @@ import { requireSession, type AuthVariables } from './auth/session.js';
 import { handleError } from './http/errors.js';
 import { proxyTrust, type ProxyOptions, type ProxyVariables } from './http/proxy.js';
 import { requestDiagnostics, stagingGate } from './http/staging.js';
+import type { CompileJobs } from './latex/compileJobs.js';
+import { compileJobsRoutes, compileStartRoute } from './routes/compile.js';
 import { documentsRoutes } from './routes/documents.js';
 import { foldersRoutes } from './routes/folders.js';
+import { latexFilesRoutes } from './routes/latexFiles.js';
 
 export type AppDeps = {
   pool: pg.Pool;
@@ -16,6 +19,8 @@ export type AppDeps = {
   loginThrottle?: LoginThrottleOptions;
   /** Proxy confiável da Vercel (segredo compartilhado + IP real do cliente). */
   proxy?: ProxyOptions | null;
+  /** Compilações LaTeX; null/ausente = compilador não configurado (503). */
+  compileJobs?: CompileJobs | null;
   /** Só staging: chave de acesso e diagnóstico de cabeçalhos. */
   staging?: {
     accessKey: string | null;
@@ -25,7 +30,7 @@ export type AppDeps = {
   };
 };
 
-export function createApp({ pool, auth, loginThrottle, staging, proxy }: AppDeps) {
+export function createApp({ pool, auth, loginThrottle, staging, proxy, compileJobs = null }: AppDeps) {
   const app = new Hono<{ Variables: AuthVariables & ProxyVariables }>();
 
   app.use('*', secureHeaders());
@@ -60,6 +65,11 @@ export function createApp({ pool, auth, loginThrottle, staging, proxy }: AppDeps
   app.use('/api/documents/*', session);
   app.use('/api/folders', session);
   app.use('/api/folders/*', session);
+  app.use('/api/compile-jobs/*', session);
+  // Projetos LaTeX: arquivos e compilação de um documento.
+  app.route('/api/documents/:id/files', latexFilesRoutes(pool));
+  app.route('/api/documents/:id/compile', compileStartRoute(pool, compileJobs));
+  app.route('/api/compile-jobs', compileJobsRoutes(compileJobs));
   app.route('/api/documents', documentsRoutes(pool));
   app.route('/api/folders', foldersRoutes(pool));
 

@@ -6,6 +6,7 @@ import { createAuth } from '../src/auth/auth.js';
 import type { LoginThrottleOptions } from '../src/auth/login-throttle.js';
 import type { Config } from '../src/config.js';
 import { createPool } from '../src/db/pool.js';
+import type { CompileJobs } from '../src/latex/compileJobs.js';
 
 export const ORIGIN = 'https://editor.test';
 
@@ -26,16 +27,17 @@ export function testConfig(databaseUrl: string): Config {
     requestDiagnostics: false,
     proxySecret: null,
     proxyRequired: false,
+    compiler: null,
   };
 }
 
 export type TestContext = Awaited<ReturnType<typeof makeTestApp>>;
 
-export async function makeTestApp(options: { loginThrottle?: LoginThrottleOptions } = {}) {
+export async function makeTestApp(options: { loginThrottle?: LoginThrottleOptions; compileJobs?: CompileJobs | null } = {}) {
   const config = testConfig(inject('apiUrl'));
   const pool = createPool(config.databaseUrl, config.dbPoolMax);
   const auth = createAuth(config, pool);
-  const app = createApp({ pool, auth, loginThrottle: options.loginThrottle });
+  const app = createApp({ pool, auth, loginThrottle: options.loginThrottle, compileJobs: options.compileJobs ?? null });
   const admin = new pg.Pool({ connectionString: inject('adminUrl'), max: 3 });
   return {
     app,
