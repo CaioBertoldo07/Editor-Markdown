@@ -107,7 +107,7 @@ export async function runStagingCheck(env: StagingCheckEnv, log: (l: string) => 
       expect(r!.v >= 180000 && r!.v < 190000, `versão ${r!.ver}`);
       return r!.ver;
     });
-    await attempt('5 migrations aplicadas', async () => {
+    await attempt('6 migrations aplicadas', async () => {
       const rows = await q<{ version: string }>('SELECT version FROM public.schema_migrations ORDER BY version');
       const names = rows.map((r) => r.version);
       expect(

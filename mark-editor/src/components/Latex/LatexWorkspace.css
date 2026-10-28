@@ -396,21 +396,13 @@
   position: absolute;
   top: 8px;
   right: 10px;
-  left: 10px;
   z-index: 5;
-  display: flex;
-  justify-content: flex-end;
-  align-items: flex-start;
-  gap: 8px;
-  pointer-events: none;
 }
 
-.latex-preview-head > * {
-  pointer-events: auto;
-}
-
+/* Fica no fluxo, acima da barra do PDF, para não cobrir a navegação. */
 .latex-stale {
-  margin-right: auto;
+  flex: none;
+  margin: 8px 52px 0 10px;
   font-size: 12px;
   font-weight: 600;
   padding: 6px 10px;

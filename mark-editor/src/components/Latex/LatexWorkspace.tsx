@@ -447,12 +447,12 @@ const LatexWorkspace: React.FC<LatexWorkspaceProps> = ({ doc, isPreviewExpanded,
         />
 
         <section className={`latex-preview ${isPreviewExpanded ? 'expanded' : ''}`} aria-label="Prévia do PDF">
+          {cstate.stale && cstate.pdf && (
+            <p className="latex-stale" role="note">
+              Mostrando a última versão que compilou — a atual tem {cstate.phase === 'error' ? 'erros' : 'problemas'}.
+            </p>
+          )}
           <div className="latex-preview-head">
-            {cstate.stale && cstate.pdf && (
-              <span className="latex-stale" role="note">
-                Mostrando a última versão que compilou — a atual tem {cstate.phase === 'error' ? 'erros' : 'problemas'}.
-              </span>
-            )}
             <button className="latex-icon-btn latex-expand" onClick={onTogglePreviewExpanded} title={isPreviewExpanded ? 'Sair do modo ampliado (Esc)' : 'Ampliar prévia (Ctrl+Shift+F)'} aria-label={isPreviewExpanded ? 'Sair do modo ampliado' : 'Ampliar prévia'}>
               {isPreviewExpanded ? (
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3"></path><path d="M21 8h-3a2 2 0 0 1-2-2V3"></path><path d="M3 16h3a2 2 0 0 1 2 2v3"></path><path d="M16 21v-3a2 2 0 0 1 2-2h3"></path></svg>
