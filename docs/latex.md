@@ -137,7 +137,10 @@ do código. O frontend novo funciona com a API antiga (sem `kind` = Markdown).
    e conferir `RESULT=OK`.
 2. Criar `editor-markdown-latex` no projeto `editor-markdown-producao`, com um
    `COMPILER_TOKEN` **diferente** do staging; conferir o autoteste.
-3. `OPS_TASK=migrate` no `editor-markdown-ops` de produção (aplica só a 006).
+3. `OPS_TASK=migrate-plan` no `editor-markdown-ops` de produção (somente
+   leitura): conferir host/banco de destino, `pendentes: 006_latex.sql` e as
+   contagens de linhas iguais às do último backup. Só então `OPS_TASK=migrate`
+   (aplica só a 006) e voltar para `idle`.
 4. Merge do PR em `main` → deploy da API e da Vercel. Definir `COMPILER_URL`/
    `COMPILER_TOKEN` na API de produção.
 5. Verificar: abrir um documento Markdown antigo (nada mudou), criar um projeto

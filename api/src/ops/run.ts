@@ -1,4 +1,4 @@
-import { runMigrations, setApiRolePassword, setBackupRolePassword } from '../db/migrate.js';
+import { planMigrations, runMigrations, setApiRolePassword, setBackupRolePassword } from '../db/migrate.js';
 import { runStagingCheck } from './staging-check.js';
 import { runStagingSeed } from './staging-seed.js';
 import { runExecute, runInspect } from './transfer.js';
@@ -7,6 +7,7 @@ import { runExecute, runInspect } from './transfer.js';
  * Ponto de entrada do serviço de OPERAÇÕES (nunca da API). A tarefa vem de
  * OPS_TASK; o processo roda uma vez e termina.
  *
+ *   migrate-plan       mostra banco de destino e migrations pendentes (somente leitura)
  *   migrate            migrations + LOGIN/senha do app_api (e do app_backup, com BACKUP_DB_PASSWORD)
  *   staging-check      verificação completa do staging com dados fictícios
  *   staging-seed       usuários e documentos sintéticos (só staging; recusa dados reais)
@@ -28,6 +29,17 @@ async function main(): Promise<number> {
   switch (task) {
     case 'idle':
       return 0;
+    case 'migrate-plan': {
+      const plan = await planMigrations(required('MIGRATION_DATABASE_URL'));
+      const t = plan.target;
+      console.log(`[ops] destino: host=${t.host} porta=${t.port} banco=${t.database} papel=${t.user} servidor=${t.server}`);
+      console.log(`[ops] aplicadas: ${plan.applied.join(', ') || 'nenhuma'}`);
+      console.log(`[ops] pendentes: ${plan.pending.join(', ') || 'nenhuma'}`);
+      if (plan.changed.length) console.log(`[ops] ALTERADAS depois de aplicadas: ${plan.changed.join(', ')}`);
+      console.log(`[ops] linhas: ${Object.entries(plan.counts).map(([k, v]) => `${k}=${v ?? 'ausente'}`).join(' ')}`);
+      console.log('[ops] nada foi alterado (somente leitura)');
+      return plan.changed.length === 0 ? 0 : 1;
+    }
     case 'migrate': {
       const url = required('MIGRATION_DATABASE_URL');
       const result = await runMigrations(url);

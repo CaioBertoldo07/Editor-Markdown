@@ -1,9 +1,9 @@
-import { cp, mkdtemp, rm, appendFile } from 'node:fs/promises';
+import { cp, mkdtemp, rm, appendFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { getMigrations } from 'better-auth/db/migration';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
-import { runMigrations } from '../src/db/migrate.js';
+import { planMigrations, runMigrations } from '../src/db/migrate.js';
 import { makeTestApp, type TestContext } from './helpers.js';
 
 let ctx: TestContext;
@@ -37,6 +37,28 @@ describe('migrations', () => {
       await cp(MIGRATIONS_DIR, dir, { recursive: true });
       await appendFile(path.join(dir, '004_rls.sql'), '\n-- alteração indevida\n');
       await expect(runMigrations(inject('adminUrl'), dir, () => undefined)).rejects.toThrow(/mudou depois de aplicada/);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('migrate-plan mostra pendentes e alteradas sem aplicar nada', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'migrations-'));
+    try {
+      await cp(MIGRATIONS_DIR, dir, { recursive: true });
+      await appendFile(path.join(dir, '004_rls.sql'), '\n-- alteração indevida\n');
+      await writeFile(path.join(dir, '007_teste_plano.sql'), 'CREATE TABLE app.nao_deve_existir (id int);\n');
+      const plan = await planMigrations(inject('adminUrl'), dir);
+      expect(plan.pending).toEqual(['007_teste_plano.sql']);
+      expect(plan.changed).toEqual(['004_rls.sql']);
+      expect(plan.applied).toHaveLength(5);
+      expect(plan.target.host).toBeTruthy();
+      expect(plan.target.database).toBeTruthy();
+      expect(typeof plan.counts['app.documents']).toBe('number');
+      expect(typeof plan.counts['app.document_files']).toBe('number');
+      expect(JSON.stringify(plan)).not.toContain(new URL(inject('adminUrl')).password || '\u0000');
+      const again = await runMigrations(inject('adminUrl'), MIGRATIONS_DIR, () => undefined);
+      expect(again.applied).toEqual([]);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
