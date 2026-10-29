@@ -307,6 +307,9 @@ describe('preservação de dados importados do Neon (fictícios)', () => {
         title: 'Resumo',
         content: 'texto 1',
         folderId,
+        // Documentos que já existiam viram Markdown pelo DEFAULT da migration 006.
+        kind: 'markdown',
+        mainFile: null,
         createdAt: '2026-08-27T10:05:00.000Z',
         updatedAt: '2026-09-01T12:00:00.000Z',
       },
@@ -315,6 +318,8 @@ describe('preservação de dados importados do Neon (fictícios)', () => {
         title: 'Solto',
         content: 'texto 2',
         folderId: null,
+        kind: 'markdown',
+        mainFile: null,
         createdAt: '2026-08-28T09:00:00.000Z',
         updatedAt: '2026-08-30T08:30:00.000Z',
       },

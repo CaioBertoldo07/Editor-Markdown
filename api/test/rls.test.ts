@@ -65,6 +65,7 @@ describe('papel usado pela API', () => {
        WHERE n.nspname = 'app' AND c.relkind = 'r' ORDER BY c.relname`
     );
     expect(rows).toEqual([
+      { relname: 'document_files', owner: 'app_owner', relrowsecurity: true, relforcerowsecurity: true },
       { relname: 'documents', owner: 'app_owner', relrowsecurity: true, relforcerowsecurity: true },
       { relname: 'folders', owner: 'app_owner', relrowsecurity: true, relforcerowsecurity: true },
     ]);

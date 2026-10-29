@@ -85,6 +85,64 @@ export async function runMigrations(
   return result;
 }
 
+export type MigrationPlan = {
+  target: { host: string; port: string; database: string; user: string; server: string };
+  applied: string[];
+  pending: string[];
+  changed: string[];
+  counts: Record<string, number | null>;
+};
+
+/**
+ * Mostra ONDE e O QUÊ uma migração faria, sem alterar nada (transação somente
+ * leitura; não cria nem a tabela de controle). Identifica o banco pelo host e
+ * pelo nome, nunca pela senha, e conta linhas sem ler conteúdo.
+ */
+export async function planMigrations(connectionString: string, migrationsDir = defaultMigrationsDir()): Promise<MigrationPlan> {
+  const files = (await readdir(migrationsDir)).filter((f) => MIGRATION_FILE.test(f)).sort();
+  const parsed = new URL(connectionString);
+  const client = new pg.Client({ connectionString });
+  await client.connect();
+  try {
+    await client.query('BEGIN READ ONLY');
+    const [info] = (
+      await client.query<{ db: string; usr: string; server: string }>(
+        "SELECT current_database() AS db, current_user AS usr, current_setting('server_version') AS server"
+      )
+    ).rows;
+    if (!info) throw new Error('Não foi possível identificar o banco de destino');
+    const hasTable = (await client.query("SELECT to_regclass('public.schema_migrations') IS NOT NULL AS ok")).rows[0].ok;
+    const rows = hasTable
+      ? (await client.query<{ version: string; checksum: string }>('SELECT version, checksum FROM public.schema_migrations')).rows
+      : [];
+    const applied = new Map(rows.map((r) => [r.version, r.checksum]));
+    const plan: MigrationPlan = {
+      target: { host: parsed.hostname, port: parsed.port || '5432', database: info.db, user: info.usr, server: info.server },
+      applied: [],
+      pending: [],
+      changed: [],
+      counts: {},
+    };
+    for (const file of files) {
+      const previous = applied.get(file);
+      if (!previous) plan.pending.push(file);
+      else if (previous !== sha256(await readFile(path.join(migrationsDir, file), 'utf8'))) plan.changed.push(file);
+      else plan.applied.push(file);
+    }
+    const tables: [string, string][] = [['app_auth', 'user'], ['app', 'folders'], ['app', 'documents'], ['app', 'document_files']];
+    for (const [schema, name] of tables) {
+      const exists = (await client.query('SELECT to_regclass($1) IS NOT NULL AS ok', [`${schema}."${name}"`])).rows[0].ok;
+      plan.counts[`${schema}.${name}`] = exists
+        ? Number((await client.query(`SELECT count(*)::int AS n FROM ${client.escapeIdentifier(schema)}.${client.escapeIdentifier(name)}`)).rows[0].n)
+        : null;
+    }
+    return plan;
+  } finally {
+    await client.query('ROLLBACK').catch(() => undefined);
+    await client.end();
+  }
+}
+
 /** Libera o LOGIN do app_api com a senha informada (nunca vai para o git). */
 export async function setApiRolePassword(connectionString: string, password: string): Promise<void> {
   if (password.length < 24) throw new Error('A senha do app_api precisa de pelo menos 24 caracteres');

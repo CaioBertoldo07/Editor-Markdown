@@ -18,6 +18,17 @@
 
     --radius: 6px;
     --shadow: 0 0 15px rgba(0, 0, 0, 0.35);
+
+    /* Editor LaTeX */
+    --latex-command: #60A5FA;
+    --latex-env: #C084FC;
+    --latex-comment: #6B7280;
+    --latex-number: #FBBF24;
+    --latex-bracket: #94A3B8;
+    --latex-math: #34D399;
+    --latex-error: #F87171;
+    --latex-warning: #FBBF24;
+    --latex-ok: #34D399;
 }
 
 /* TEMA LIGHT */
@@ -37,6 +48,17 @@
 
     --radius: 6px;
     --shadow: 0 0 15px rgba(0, 0, 0, 0.08);
+
+    /* Editor LaTeX */
+    --latex-command: #1D4ED8;
+    --latex-env: #7C3AED;
+    --latex-comment: #6B7280;
+    --latex-number: #B45309;
+    --latex-bracket: #64748B;
+    --latex-math: #047857;
+    --latex-error: #DC2626;
+    --latex-warning: #B45309;
+    --latex-ok: #047857;
 }
 
 * {

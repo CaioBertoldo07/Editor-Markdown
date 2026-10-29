@@ -51,6 +51,18 @@ api/
 | `POST /api/folders` | Cria `{ name?, createdAt? }` |
 | `PATCH /api/folders/:id` | Renomeia `{ name }` |
 | `DELETE /api/folders/:id` | Exclui a pasta; os documentos ficam sem pasta |
+| `POST /api/documents` com `{ kind: 'latex', content?, mainFile? }` | Cria um projeto LaTeX (o `content` vira o arquivo principal) |
+| `GET /api/documents/:id/files` | Arquivos do projeto LaTeX (texto com conteúdo; binários só metadados) |
+| `GET /api/documents/:id/files/raw?path=` | Um arquivo, como bytes (`attachment`, CSP `sandbox`) |
+| `PUT /api/documents/:id/files/content?path=` | Cria/substitui um arquivo (corpo = bytes; até 4 MB) |
+| `POST /api/documents/:id/files/move` | `{ from, to, folder? }` renomeia/move arquivo ou pasta |
+| `DELETE /api/documents/:id/files?path=` ou `?folder=` | Remove (nunca o arquivo principal) |
+| `POST /api/documents/:id/compile` | Inicia a compilação (`202 { job }`) |
+| `GET /api/compile-jobs/:jobId?wait=1` · `/pdf` · `DELETE` | Acompanha (long-poll), baixa o PDF, cancela |
+
+Projetos LaTeX: ver [`../docs/latex.md`](../docs/latex.md) (modelo de dados,
+cotas, fila de compilações, procedimento de publicação) e o serviço
+[`../latex-compiler`](../latex-compiler/README.md).
 
 Tudo em `/api/documents` e `/api/folders` exige sessão (`401` sem ela). Recurso
 de outro usuário ou inexistente responde `404`. Campos extras no corpo

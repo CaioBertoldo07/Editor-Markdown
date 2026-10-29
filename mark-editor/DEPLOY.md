@@ -32,3 +32,11 @@ O middleware descarta os cabeçalhos de IP enviados pelo navegador e manda
 No primeiro login com a conta vazia, o que estava no `localStorage` é enviado
 uma única vez (`src/utils/migration.ts`). A flag `markdown-editor-migrated-to-neon`
 continua a mesma: quem já migrou na época do Neon não migra de novo.
+
+## Projetos LaTeX
+
+Nada novo na Vercel: a compilação acontece no serviço `editor-markdown-latex`
+do Railway, chamado só pela API. O middleware repassa os uploads de arquivos
+dos projetos (um por requisição, até 4 MB, por causa do limite de ~4,5 MB do
+corpo nas funções da Vercel) e o PDF compilado (resposta transmitida em fluxo).
+Ver [`../docs/latex.md`](../docs/latex.md).

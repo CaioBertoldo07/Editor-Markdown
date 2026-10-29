@@ -1,0 +1,1060 @@
+/* Ambiente LaTeX: árvore de arquivos | código | prévia PDF. Usa as mesmas
+   variáveis de tema do resto do app (global.css). */
+
+.latex-workspace {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg-main);
+}
+
+.latex-workspace.resizing,
+.latex-workspace.resizing * {
+  cursor: col-resize !important;
+  user-select: none;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* --- Barra de ações --- */
+
+.latex-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-main);
+  flex-wrap: wrap;
+}
+
+.latex-bar-left,
+.latex-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.latex-bar-right {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.latex-icon-btn {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.latex-icon-btn:hover,
+.latex-icon-btn.active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.latex-current-file {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.latex-unsaved {
+  font-family: 'Manrope', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--latex-warning);
+  background: color-mix(in srgb, var(--latex-warning) 14%, transparent);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.latex-engine {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.latex-engine select {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 8px;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* Interruptor da compilação automática */
+.latex-auto {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.latex-auto input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.latex-switch {
+  width: 30px;
+  height: 17px;
+  border-radius: 999px;
+  background: var(--border);
+  position: relative;
+  transition: background 0.2s ease;
+}
+
+.latex-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--bg-main);
+  transition: transform 0.2s ease;
+}
+
+.latex-auto input:checked + .latex-switch {
+  background: var(--accent);
+}
+
+.latex-auto input:checked + .latex-switch::after {
+  transform: translateX(13px);
+  background: #fff;
+}
+
+.latex-auto input:focus-visible + .latex-switch {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Estado da compilação */
+.latex-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.latex-status::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.latex-status.tone-busy::before {
+  display: none;
+}
+
+.latex-status.tone-busy {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.latex-status.tone-ok {
+  color: var(--latex-ok);
+  border-color: color-mix(in srgb, var(--latex-ok) 40%, transparent);
+}
+
+.latex-status.tone-warn {
+  color: var(--latex-warning);
+  border-color: color-mix(in srgb, var(--latex-warning) 40%, transparent);
+}
+
+.latex-status.tone-error {
+  color: var(--latex-error);
+  border-color: color-mix(in srgb, var(--latex-error) 40%, transparent);
+}
+
+.latex-status-time {
+  font-weight: 500;
+  opacity: 0.7;
+}
+
+.latex-spinner {
+  width: 11px;
+  height: 11px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.latex-compile {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--accent);
+  color: #fff;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.latex-compile:hover {
+  background: var(--accent-hover);
+}
+
+.latex-compile-cancel {
+  background: transparent;
+  color: var(--latex-error);
+  border-color: color-mix(in srgb, var(--latex-error) 50%, transparent);
+}
+
+.latex-compile-cancel:hover {
+  background: color-mix(in srgb, var(--latex-error) 12%, transparent);
+}
+
+.latex-download {
+  position: relative;
+}
+
+.latex-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 50;
+  min-width: 230px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+.latex-menu button {
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  padding: 9px 12px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.latex-menu button:hover:not(:disabled) {
+  background: var(--accent-transparent);
+  color: var(--accent);
+}
+
+.latex-menu button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.latex-notice {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 16px 0;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  background: color-mix(in srgb, var(--latex-error) 12%, transparent);
+  color: var(--text-primary);
+  border: 1px solid color-mix(in srgb, var(--latex-error) 35%, transparent);
+}
+
+.latex-notice button {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+/* --- Painéis --- */
+
+.latex-tabs {
+  display: none;
+}
+
+.latex-panes {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  position: relative;
+}
+
+.latex-files {
+  width: 220px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  background: var(--bg-main);
+  display: flex;
+  min-height: 0;
+}
+
+.latex-code {
+  flex: 0 0 var(--latex-split, 50%);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+}
+
+.latex-editor {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.latex-editor .cm-editor {
+  height: 100%;
+}
+
+.latex-editor .cm-editor.cm-focused {
+  outline: none;
+}
+
+.latex-splitter {
+  width: 6px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  background: var(--border);
+  position: relative;
+  transition: background 0.15s ease;
+}
+
+.latex-splitter:hover,
+.latex-splitter:focus-visible,
+.latex-workspace.resizing .latex-splitter {
+  background: var(--accent);
+}
+
+.latex-preview {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card);
+  position: relative;
+}
+
+.latex-preview.expanded {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+}
+
+.latex-preview-head {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  z-index: 5;
+}
+
+/* Fica no fluxo, acima da barra do PDF, para não cobrir a navegação. */
+.latex-stale {
+  flex: none;
+  margin: 8px 52px 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  color: var(--latex-warning);
+  background: color-mix(in srgb, var(--bg-card) 85%, var(--latex-warning));
+  border: 1px solid color-mix(in srgb, var(--latex-warning) 40%, transparent);
+}
+
+.latex-loading {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+  padding: 24px;
+  text-align: center;
+}
+
+.latex-loading-error {
+  color: var(--latex-error);
+}
+
+.latex-binary {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  text-align: center;
+}
+
+.latex-binary img {
+  max-width: 100%;
+  max-height: 70%;
+  object-fit: contain;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: repeating-conic-gradient(var(--bg-card) 0% 25%, var(--bg-main) 0% 50%) 50% / 16px 16px;
+}
+
+.latex-binary-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+}
+
+/* --- Árvore de arquivos --- */
+
+.latex-tree {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  font-size: 13px;
+}
+
+.latex-tree-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 10px 8px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.latex-tree-header-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.latex-tree-body {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 12px;
+}
+
+.latex-tree-error {
+  margin: 0 10px 8px;
+  font-size: 12px;
+  color: var(--latex-error);
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 8px 5px 10px;
+  cursor: pointer;
+  color: var(--text-primary);
+  border-left: 2px solid transparent;
+  position: relative;
+  min-height: 30px;
+}
+
+.tree-row:hover {
+  background: var(--bg-card);
+}
+
+.tree-row.active {
+  background: var(--accent-transparent);
+  border-left-color: var(--accent);
+}
+
+.tree-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.tree-icon {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.tree-icon-folder {
+  color: var(--accent);
+}
+
+.tree-icon-tex {
+  color: var(--latex-command);
+}
+
+.tree-icon-bib {
+  color: var(--latex-env);
+}
+
+.tree-icon-img {
+  color: var(--latex-number);
+}
+
+.tree-name {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tree-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-transparent);
+  padding: 1px 6px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.tree-dirty {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--latex-warning);
+  flex-shrink: 0;
+}
+
+.tree-actions {
+  display: none;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.tree-row:hover .tree-actions,
+.tree-row:focus-within .tree-actions {
+  display: inline-flex;
+}
+
+.tree-action {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.tree-action:hover {
+  background: var(--bg-main);
+  color: var(--accent);
+}
+
+.tree-action-danger:hover {
+  color: var(--latex-error);
+}
+
+.tree-input {
+  flex: 1;
+  min-width: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  padding: 4px 6px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  outline: none;
+}
+
+/* --- PDF --- */
+
+.pdf-viewer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.pdf-toolbar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 56px 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-main);
+  flex-wrap: wrap;
+}
+
+.pdf-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pdf-btn {
+  min-width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.pdf-btn:hover:not(:disabled),
+.pdf-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.pdf-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pdf-btn-text {
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pdf-page {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.pdf-page input {
+  width: 42px;
+  text-align: center;
+  padding: 5px 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-family: inherit;
+}
+
+.pdf-zoom {
+  min-width: 44px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.pdf-scroll {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  /* Centraliza pela margem da página: com zoom maior que o painel, a
+     rolagem horizontal alcança a página inteira (align-items: center cortaria
+     a borda esquerda). */
+  align-items: flex-start;
+  gap: 12px;
+  background: var(--bg-secondary);
+}
+
+.pdf-page-box {
+  margin: 0 auto;
+  flex-shrink: 0;
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+}
+
+.pdf-page-box canvas {
+  display: block;
+}
+
+.pdf-viewer-empty {
+  align-items: center;
+  justify-content: center;
+}
+
+.pdf-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  text-align: center;
+  padding: 24px;
+  max-width: 360px;
+}
+
+.pdf-empty svg {
+  opacity: 0.5;
+}
+
+.pdf-error {
+  padding: 10px 16px;
+  font-size: 13px;
+  color: var(--latex-error);
+}
+
+/* --- Problemas --- */
+
+.latex-problems {
+  border-top: 1px solid var(--border);
+  background: var(--bg-main);
+  display: flex;
+  flex-direction: column;
+  max-height: 45%;
+  min-height: 0;
+}
+
+.latex-problems-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+}
+
+.latex-problems-toggle .chevron {
+  margin-left: auto;
+  transition: transform 0.2s ease;
+  color: var(--text-secondary);
+}
+
+.latex-problems.open .latex-problems-toggle .chevron {
+  transform: rotate(180deg);
+}
+
+.pill {
+  font-size: 11px;
+  min-width: 20px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  text-align: center;
+  letter-spacing: 0;
+}
+
+.pill-error {
+  background: color-mix(in srgb, var(--latex-error) 18%, transparent);
+  color: var(--latex-error);
+}
+
+.pill-warning {
+  background: color-mix(in srgb, var(--latex-warning) 18%, transparent);
+  color: var(--latex-warning);
+}
+
+.latex-diagnostics {
+  overflow-y: auto;
+  padding: 0 12px 12px;
+  font-size: 13px;
+}
+
+.latex-diagnostics-summary {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 4px 2px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.diag-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.diag-count.zero {
+  opacity: 0.5;
+}
+
+.diag-error {
+  color: var(--latex-error);
+}
+
+.diag-warning {
+  color: var(--latex-warning);
+}
+
+.diag-toggle-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.latex-diagnostics-empty,
+.latex-diagnostics-message {
+  color: var(--text-secondary);
+  padding: 8px 2px;
+}
+
+.latex-diagnostics-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.diag-item {
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  overflow: hidden;
+}
+
+.diag-item.diag-error {
+  border-left-color: var(--latex-error);
+}
+
+.diag-item.diag-warning {
+  border-left-color: var(--latex-warning);
+}
+
+.diag-item.diag-info {
+  border-left-color: var(--text-secondary);
+}
+
+.diag-main {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  width: 100%;
+  text-align: left;
+  padding: 9px 10px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.diag-main:not(:disabled) {
+  cursor: pointer;
+}
+
+.diag-main:not(:disabled):hover {
+  background: var(--accent-transparent);
+}
+
+.diag-badge {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.diag-error .diag-badge {
+  color: var(--latex-error);
+}
+
+.diag-warning .diag-badge {
+  color: var(--latex-warning);
+}
+
+.diag-info .diag-badge {
+  color: var(--text-secondary);
+}
+
+.diag-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.diag-location {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--accent);
+}
+
+.diag-raw {
+  display: block;
+  padding: 6px 10px 8px 34px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.latex-log {
+  margin-top: 10px;
+}
+
+.latex-log summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 6px 2px;
+}
+
+.latex-log pre {
+  margin-top: 6px;
+  max-height: 320px;
+  overflow: auto;
+  padding: 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.latex-problems-mobile {
+  display: none;
+}
+
+/* --- Telas menores: abas Código | PDF | Problemas, sem espremer painéis --- */
+
+@media (max-width: 900px) {
+  .latex-bar {
+    padding: 8px 12px;
+  }
+
+  .latex-engine span,
+  .latex-status-time {
+    display: none;
+  }
+
+  .latex-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-main);
+  }
+
+  .latex-tabs button {
+    flex: 1;
+    padding: 10px 8px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .latex-tabs button.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  .latex-splitter,
+  .latex-problems {
+    display: none;
+  }
+
+  .latex-files {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: min(280px, 85vw);
+    z-index: 20;
+    box-shadow: var(--shadow);
+  }
+
+  .latex-code,
+  .latex-preview,
+  .latex-problems-mobile {
+    flex: 1 1 100%;
+    display: none;
+  }
+
+  .mobile-code .latex-code,
+  .mobile-pdf .latex-preview {
+    display: flex;
+  }
+
+  .mobile-problems .latex-problems-mobile {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    background: var(--bg-main);
+    padding-top: 10px;
+  }
+
+  .pdf-toolbar {
+    gap: 8px;
+  }
+
+  /* Ações da árvore sempre visíveis no toque (sem hover). */
+  .tree-actions {
+    display: inline-flex;
+  }
+}

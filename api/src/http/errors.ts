@@ -30,6 +30,10 @@ export class BadRequestError extends Error {
 }
 
 const FOREIGN_KEY_VIOLATION = '23503';
+const UNIQUE_VIOLATION = '23505';
+
+/** 413 com motivo específico (limites dos projetos LaTeX). */
+const QUOTA_CODES = new Set(['storage_quota_exceeded', 'too_many_files', 'project_too_large']);
 
 export function handleError(err: Error, c: Context) {
   if (err instanceof BadRequestError) {
@@ -40,13 +44,18 @@ export function handleError(err: Error, c: Context) {
   }
   if (err instanceof HTTPException) {
     const status = err.status;
-    const message = status === 413 ? 'payload_too_large' : err.message || 'http_error';
+    const message =
+      status === 413 ? (QUOTA_CODES.has(err.message) ? err.message : 'payload_too_large') : err.message || 'http_error';
     return c.json({ error: message }, status);
   }
   // Pasta de outro usuário/inexistente que escapou da checagem prévia (corrida):
   // a FK composta barra no banco, e respondemos como recurso inexistente.
   if ((err as { code?: string }).code === FOREIGN_KEY_VIOLATION) {
     return c.json({ error: 'folder_not_found' }, 404);
+  }
+  // Só existe índice único de caminho em document_files (mesmo nome, outra caixa).
+  if ((err as { code?: string }).code === UNIQUE_VIOLATION) {
+    return c.json({ error: 'file_exists' }, 409);
   }
   console.error('[api] erro inesperado:', (err as { code?: string }).code ?? err.name);
   return c.json({ error: 'internal_error' }, 500);

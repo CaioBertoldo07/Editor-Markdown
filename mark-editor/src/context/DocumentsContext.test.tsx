@@ -24,7 +24,7 @@ const { DocumentsProvider, useDocuments } = await import('./DocumentsContext');
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const doc = (id: string, title: string): Document => ({ id, title, content: '', folderId: null, updatedAt: '2026-10-26T00:00:00.000Z' });
+const doc = (id: string, title: string): Document => ({ id, title, content: '', folderId: null, updatedAt: '2026-10-26T00:00:00.000Z', kind: 'markdown', mainFile: null });
 const A = doc('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'Fictício A');
 const B = doc('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'Fictício B');
 

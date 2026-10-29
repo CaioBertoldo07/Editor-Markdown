@@ -1,7 +1,16 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import type { ReactNode } from 'react';
-import type { Document, Folder } from '../types/document';
+import type { Document, DocumentKind, Folder } from '../types/document';
 import { api } from '../lib/api';
+import { NEW_PROJECT_TEMPLATE } from '../latex/templates';
+import {
+  ProjectImportError,
+  projectTitle,
+  readProjectFiles,
+  readProjectZip,
+  splitLatexUploads,
+  type ProjectImport,
+} from '../latex/projectImport';
 import { createDocumentDeleter } from '../lib/documentDeletion';
 import type { DeleteOutcome } from '../lib/documentDeletion';
 import { useAuth } from './AuthContext';
@@ -18,9 +27,11 @@ interface DocumentsContextType {
   /** Última falha de sincronização, para avisar o usuário */
   error: string | null;
   dismissError: () => void;
-  createDocument: (folderId?: string | null) => Promise<Document | null>;
-  /** Cria documentos a partir de arquivos .md enviados pelo usuário */
+  createDocument: (folderId?: string | null, kind?: DocumentKind) => Promise<Document | null>;
+  /** Cria documentos a partir de arquivos enviados: .md viram Markdown; .tex/.zip viram projetos LaTeX */
   importDocuments: (files: File[], folderId?: string | null) => Promise<ImportSummary>;
+  /** Atualiza só o estado local depois de uma escrita nos arquivos de um projeto LaTeX */
+  applyServerUpdate: (id: string, updates: Partial<Pick<Document, 'updatedAt' | 'mainFile'>>) => void;
   updateDocument: (id: string, updates: Partial<Document>) => void;
   /** Exclui no servidor e só então tira o documento da lista */
   deleteDocument: (id: string) => Promise<DeleteOutcome>;
@@ -106,9 +117,16 @@ export const DocumentsProvider: React.FC<DocumentsProviderProps> = ({ children }
     });
   };
 
-  const createDocument = async (folderId: string | null = null): Promise<Document | null> => {
+  const createDocument = async (
+    folderId: string | null = null,
+    kind: DocumentKind = 'markdown'
+  ): Promise<Document | null> => {
     try {
-      const newDoc = await api.documents.create({ title: 'Novo Documento', content: '', folderId });
+      const newDoc = await api.documents.create(
+        kind === 'latex'
+          ? { kind: 'latex', title: 'Novo Projeto LaTeX', content: NEW_PROJECT_TEMPLATE, folderId }
+          : { title: 'Novo Documento', content: '', folderId }
+      );
       setDocuments((prev) => [newDoc, ...prev]);
       setSelectedDocument(newDoc);
       return newDoc;
@@ -127,14 +145,72 @@ export const DocumentsProvider: React.FC<DocumentsProviderProps> = ({ children }
    * fora. Já uma falha no banco derruba a importação inteira, porque a gravação
    * é um insert único.
    */
+  /**
+   * Cria um projeto LaTeX com os arquivos lidos do ZIP (ou soltos). O projeto
+   * nasce com o arquivo principal; os outros sobem um por requisição (limite
+   * do proxy). Se algum falhar, o projeto incompleto é apagado.
+   */
+  const importLatexProject = async (
+    title: string,
+    project: ProjectImport,
+    folderId: string | null
+  ): Promise<Document> => {
+    const mainFile =
+      project.mainFile ?? project.files.find((f) => f.path.toLowerCase().endsWith('.tex'))!.path;
+    const main = project.files.find((f) => f.path === mainFile)!;
+    const doc = await api.documents.create({
+      kind: 'latex',
+      title,
+      folderId,
+      mainFile,
+      content: new TextDecoder().decode(main.bytes),
+    });
+    try {
+      let updatedAt = doc.updatedAt;
+      for (const file of project.files) {
+        if (file.path === mainFile) continue;
+        updatedAt = (await api.latex.writeFile(doc.id, file.path, file.bytes)).documentUpdatedAt;
+      }
+      return { ...doc, updatedAt };
+    } catch (err) {
+      await api.documents.remove(doc.id).catch(() => undefined);
+      throw err;
+    }
+  };
+
   const importDocuments = async (
     files: File[],
     folderId: string | null = null
   ): Promise<ImportSummary> => {
-    const { parsed, skipped } = await parseImportFiles(files);
+    const { zips, latex, others } = splitLatexUploads(files);
+    const latexDocs: Document[] = [];
+    const latexSkipped: ImportSummary['skipped'] = [];
+
+    const sources: Array<{ name: string; read: () => Promise<ProjectImport> }> = [
+      ...zips.map((zip) => ({ name: zip.name, read: () => readProjectZip(zip) })),
+      ...(latex.length > 0
+        ? [{ name: latex.find((f) => /\.(tex|ltx)$/i.test(f.name))?.name ?? latex[0].name, read: () => readProjectFiles(latex) }]
+        : []),
+    ];
+    for (const source of sources) {
+      try {
+        const project = await source.read();
+        latexSkipped.push(...project.skipped.map((s) => ({ name: `${source.name}: ${s.name}`, reason: s.reason })));
+        latexDocs.push(await importLatexProject(projectTitle(source.name), project, folderId));
+      } catch (err) {
+        const reason =
+          err instanceof ProjectImportError ? err.message : `falha ao salvar no servidor (${(err as Error).message})`;
+        latexSkipped.push({ name: source.name, reason });
+      }
+    }
+    if (latexDocs.length > 0) setDocuments((prev) => [...latexDocs, ...prev]);
+
+    const { parsed, skipped: markdownSkipped } = await parseImportFiles(others);
+    const skipped = [...latexSkipped, ...markdownSkipped];
 
     if (parsed.length === 0) {
-      return { imported: 0, skipped, firstDocumentId: null };
+      if (latexDocs.length === 1) setSelectedDocument(latexDocs[0]);
+      return { imported: latexDocs.length, skipped, firstDocumentId: latexDocs[0]?.id ?? null };
     }
 
     let newDocs: Document[];
@@ -147,12 +223,12 @@ export const DocumentsProvider: React.FC<DocumentsProviderProps> = ({ children }
       console.error('Erro ao importar documentos:', (err as Error).message);
       setError(`Não foi possível importar os documentos: ${(err as Error).message}`);
       return {
-        imported: 0,
+        imported: latexDocs.length,
         skipped: [
           ...skipped,
           ...parsed.map((doc) => ({ name: doc.title, reason: 'falha ao salvar no servidor' })),
         ],
-        firstDocumentId: null,
+        firstDocumentId: latexDocs[0]?.id ?? null,
       };
     }
 
@@ -160,10 +236,19 @@ export const DocumentsProvider: React.FC<DocumentsProviderProps> = ({ children }
 
     // Veio um arquivo só: já deixa ele selecionado, como acontece ao criar um
     // documento novo, para quem chamar poder abrir a rota dele em seguida.
-    if (newDocs.length === 1) setSelectedDocument(newDocs[0]);
+    const all = [...latexDocs, ...newDocs];
+    if (all.length === 1) setSelectedDocument(all[0]);
 
-    return { imported: newDocs.length, skipped, firstDocumentId: newDocs[0]?.id ?? null };
+    return { imported: all.length, skipped, firstDocumentId: all[0]?.id ?? null };
   };
+
+  const applyServerUpdate = useCallback(
+    (id: string, updates: Partial<Pick<Document, 'updatedAt' | 'mainFile'>>) => {
+      setDocuments((prev) => prev.map((doc) => (doc.id === id ? { ...doc, ...updates } : doc)));
+      setSelectedDocument((prev) => (prev?.id === id ? { ...prev, ...updates } : prev));
+    },
+    []
+  );
 
   const updateDocument = (id: string, updates: Partial<Document>): void => {
     const updatedAt = new Date().toISOString();
@@ -282,6 +367,7 @@ export const DocumentsProvider: React.FC<DocumentsProviderProps> = ({ children }
         dismissError,
         createDocument,
         importDocuments,
+        applyServerUpdate,
         updateDocument,
         deleteDocument,
         deletingIds,

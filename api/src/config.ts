@@ -56,6 +56,20 @@ const envSchema = z.object({
     .enum(['true', 'false', ''])
     .default('false')
     .transform((v) => v === 'true'),
+  /**
+   * Serviço de compilação LaTeX (rede privada do Railway, ex.:
+   * http://editor-markdown-latex.railway.internal:8080). Vazio = compilação
+   * desligada (503 compiler_not_configured); o resto do app funciona igual.
+   */
+  COMPILER_URL: z.union([z.literal(''), z.url()]).default(''),
+  COMPILER_TOKEN: z
+    .string()
+    .default('')
+    .refine((v) => v === '' || v.length >= 32, 'COMPILER_TOKEN precisa de pelo menos 32 caracteres'),
+  /** Espera máxima pela resposta do compilador (fila + compilação). */
+  COMPILER_TIMEOUT_MS: z.coerce.number().int().min(5_000).max(600_000).default(150_000),
+  COMPILE_RATE_PER_MINUTE: z.coerce.number().int().min(1).max(1000).default(20),
+  COMPILE_MAX_ACTIVE_PER_USER: z.coerce.number().int().min(1).max(20).default(2),
   /** Só em staging: liga GET /api/_diag/request (cabeçalhos de proxy, IPs mascarados). */
   ENABLE_REQUEST_DIAGNOSTICS: z
     .enum(['true', 'false', ''])
@@ -80,6 +94,13 @@ export type Config = {
   requestDiagnostics: boolean;
   proxySecret: string | null;
   proxyRequired: boolean;
+  compiler: {
+    url: string;
+    token: string;
+    timeoutMs: number;
+    ratePerMinute: number;
+    maxActivePerUser: number;
+  } | null;
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -93,6 +114,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
 
   if (e.PROXY_REQUIRED && !e.PROXY_SECRET) {
     throw new Error('PROXY_REQUIRED=true exige PROXY_SECRET');
+  }
+
+  if (e.COMPILER_URL && !e.COMPILER_TOKEN) {
+    throw new Error('COMPILER_URL exige COMPILER_TOKEN');
   }
 
   if (e.NODE_ENV === 'production' && !origin.startsWith('https://')) {
@@ -115,5 +140,14 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     requestDiagnostics: e.ENABLE_REQUEST_DIAGNOSTICS,
     proxySecret: e.PROXY_SECRET || null,
     proxyRequired: e.PROXY_REQUIRED,
+    compiler: e.COMPILER_URL
+      ? {
+          url: e.COMPILER_URL,
+          token: e.COMPILER_TOKEN,
+          timeoutMs: e.COMPILER_TIMEOUT_MS,
+          ratePerMinute: e.COMPILE_RATE_PER_MINUTE,
+          maxActivePerUser: e.COMPILE_MAX_ACTIVE_PER_USER,
+        }
+      : null,
   };
 }

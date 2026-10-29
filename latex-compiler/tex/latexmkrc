@@ -1,0 +1,18 @@
+# latexmkrc do compilador. É o ÚNICO rc lido: o latexmk roda com -norc, e
+# arquivos latexmkrc/.latexmkrc do projeto são recusados (seriam código Perl).
+$bibtex_use = 2;          # roda BibTeX/Biber quando há .bib; regenera o .bbl
+$max_repeat = 6;          # passagens para referências cruzadas e bibliografia
+$preview_mode = 0;
+$preview_continuous_mode = 0;
+$pdf_previewer = '';
+$force_mode = 0;
+$recorder = 1;
+$silent = 0;
+@default_files = ();
+@cus_dep_list = ();       # sem conversões customizadas (que chamariam programas externos)
+$pdflatex = 'pdflatex -no-shell-escape -interaction=nonstopmode -file-line-error -synctex=0 %O %S';
+$xelatex  = 'xelatex -no-shell-escape -interaction=nonstopmode -file-line-error -synctex=0 %O %S';
+$lualatex = 'lualatex -no-shell-escape -interaction=nonstopmode -file-line-error -synctex=0 %O %S';
+$bibtex = 'bibtex %O %S';
+$biber = 'biber --noconf %O %S';
+$makeindex = 'makeindex %O -o %D %S';

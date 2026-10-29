@@ -27,6 +27,15 @@ const MESSAGES: Record<string, string> = {
   payload_too_large: 'O conteúdo é grande demais para ser salvo.',
   document_not_found: 'Documento não encontrado.',
   folder_not_found: 'Pasta não encontrada.',
+  file_not_found: 'Arquivo não encontrado no projeto.',
+  file_exists: 'Já existe um arquivo com esse nome.',
+  storage_quota_exceeded: 'Seu espaço para projetos LaTeX acabou (250 MB). Apague arquivos que não usa.',
+  too_many_files: 'O projeto chegou ao limite de 300 arquivos.',
+  project_too_large: 'O projeto chegou ao limite de 40 MB.',
+  compiler_not_configured: 'A compilação LaTeX não está disponível neste ambiente.',
+  compile_in_progress: 'Já há compilações em andamento. Aguarde terminarem.',
+  too_many_compiles: 'Muitas compilações em pouco tempo. Aguarde um minuto.',
+  job_not_found: 'A compilação expirou. Compile de novo.',
   not_found: 'Serviço indisponível no momento.',
 };
 
@@ -37,18 +46,34 @@ export const onUnauthorized = (handler: (() => void) | null) => {
   unauthorizedHandler = handler;
 };
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  let res: Response;
+/** Corpo binário (upload de arquivo do projeto) em vez de JSON. */
+class RawBody {
+  readonly bytes: Uint8Array;
+  constructor(bytes: Uint8Array) {
+    this.bytes = bytes;
+  }
+}
+
+async function send(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<Response> {
+  const headers: Record<string, string> = { accept: 'application/json' };
+  let payload: BodyInit | undefined;
+  if (body instanceof RawBody) {
+    headers['content-type'] = 'application/octet-stream';
+    payload = new Blob([body.bytes as Uint8Array<ArrayBuffer>]);
+  } else if (body !== undefined) {
+    headers['content-type'] = 'application/json';
+    payload = JSON.stringify(body);
+  }
   try {
-    res = await fetch(`/api${path}`, {
-      method,
-      credentials: 'same-origin',
-      headers: body === undefined ? { accept: 'application/json' } : { accept: 'application/json', 'content-type': 'application/json' },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
-  } catch {
+    return await fetch(`/api${path}`, { method, credentials: 'same-origin', headers, body: payload, signal });
+  } catch (err) {
+    if ((err as Error).name === 'AbortError') throw err;
     throw new ApiError(0, 'network', 'Não foi possível conectar ao servidor.');
   }
+}
+
+async function request<T>(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
+  const res = await send(method, path, body, signal);
 
   if (res.status === 204) return undefined as T;
 
@@ -67,6 +92,70 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return data as T;
 }
 
+/** Download binário (arquivo do projeto, PDF compilado). */
+async function requestBytes(path: string, signal?: AbortSignal): Promise<Uint8Array> {
+  const res = await send('GET', path, undefined, signal);
+  if (!res.ok) {
+    const payload = ((await res.json().catch(() => null)) ?? {}) as { error?: string };
+    const code = payload.error ?? `http_${res.status}`;
+    if (res.status === 401) unauthorizedHandler?.();
+    throw new ApiError(res.status, code, MESSAGES[code] ?? `erro ${res.status}`);
+  }
+  return new Uint8Array(await res.arrayBuffer());
+}
+
+export type ProjectFileKind = 'text' | 'binary';
+
+export interface ProjectFileInfo {
+  path: string;
+  kind: ProjectFileKind;
+  size: number;
+  updatedAt: string;
+  /** Só nos arquivos de texto. */
+  content?: string;
+}
+
+export type CompileStatus =
+  | 'running'
+  | 'success'
+  | 'warnings'
+  | 'error'
+  | 'timeout'
+  | 'cancelled'
+  | 'too_large'
+  | 'busy'
+  | 'unavailable';
+
+export interface CompileDiagnostic {
+  severity: 'error' | 'warning' | 'info';
+  file: string | null;
+  line: number | null;
+  message: string;
+  raw: string;
+  source: string;
+}
+
+export interface CompileJob {
+  id: string;
+  documentId: string;
+  status: CompileStatus;
+  createdAt: string;
+  finishedAt: string | null;
+  hasPdf: boolean;
+  engine?: string | null;
+  durationMs?: number | null;
+  diagnostics?: CompileDiagnostic[];
+  log?: string;
+  output?: string;
+  pdfBytes?: number;
+  message?: string | null;
+}
+
+export type LatexEngine = 'pdflatex' | 'xelatex' | 'lualatex';
+
+const filePath = (docId: string, suffix: string, path?: string) =>
+  `/documents/${encodeURIComponent(docId)}/files${suffix}${path === undefined ? '' : `?path=${encodeURIComponent(path)}`}`;
+
 export interface SessionUser {
   id: string;
   email: string;
@@ -74,7 +163,7 @@ export interface SessionUser {
 }
 
 /** Formato devolvido pela API (camelCase, datas ISO). */
-type ApiDocument = Document & { createdAt: string };
+type ApiDocument = Omit<Document, 'kind' | 'mainFile'> & { createdAt: string; kind?: Document['kind']; mainFile?: string | null };
 
 const toDocument = (doc: ApiDocument): Document => ({
   id: doc.id,
@@ -82,6 +171,9 @@ const toDocument = (doc: ApiDocument): Document => ({
   content: doc.content,
   folderId: doc.folderId,
   updatedAt: doc.updatedAt,
+  // API antiga (sem os campos) => Markdown, como todos os documentos anteriores.
+  kind: doc.kind ?? 'markdown',
+  mainFile: doc.mainFile ?? null,
 });
 
 /** Lotes de importação: limite da API (100) e do proxy da Vercel (~4 MB por corpo). */
@@ -125,7 +217,13 @@ export const api = {
       const data = await request<{ documents: ApiDocument[] }>('GET', '/documents');
       return data.documents.map(toDocument);
     },
-    async create(input: { title?: string; content?: string; folderId?: string | null }): Promise<Document> {
+    async create(input: {
+      title?: string;
+      content?: string;
+      folderId?: string | null;
+      kind?: Document['kind'];
+      mainFile?: string;
+    }): Promise<Document> {
       const data = await request<{ document: ApiDocument }>('POST', '/documents', input);
       return toDocument(data.document);
     },
@@ -144,12 +242,67 @@ export const api = {
       }
       return created;
     },
-    async update(id: string, input: { title?: string; content?: string; folderId?: string | null }): Promise<Document> {
+    async update(
+      id: string,
+      input: { title?: string; content?: string; folderId?: string | null; mainFile?: string }
+    ): Promise<Document> {
       const data = await request<{ document: ApiDocument }>('PATCH', `/documents/${encodeURIComponent(id)}`, input);
       return toDocument(data.document);
     },
     async remove(id: string): Promise<void> {
       await request('DELETE', `/documents/${encodeURIComponent(id)}`);
+    },
+  },
+
+  /** Arquivos de projetos LaTeX e compilação. */
+  latex: {
+    async listFiles(docId: string): Promise<{ mainFile: string; updatedAt: string; files: ProjectFileInfo[] }> {
+      return request('GET', filePath(docId, ''));
+    },
+    async readFile(docId: string, path: string): Promise<Uint8Array> {
+      return requestBytes(filePath(docId, '/raw', path));
+    },
+    /** Cria ou substitui um arquivo (texto em UTF-8 ou bytes). */
+    async writeFile(
+      docId: string,
+      path: string,
+      content: string | Uint8Array
+    ): Promise<{ file: ProjectFileInfo; documentUpdatedAt: string }> {
+      const bytes = typeof content === 'string' ? new TextEncoder().encode(content) : content;
+      return request('PUT', filePath(docId, '/content', path), new RawBody(bytes));
+    },
+    async move(
+      docId: string,
+      from: string,
+      to: string,
+      folder = false
+    ): Promise<{ mainFile: string; documentUpdatedAt: string }> {
+      return request('POST', filePath(docId, '/move'), { from, to, ...(folder ? { folder: true } : {}) });
+    },
+    async remove(docId: string, path: string): Promise<{ documentUpdatedAt: string }> {
+      return request('DELETE', filePath(docId, '', path));
+    },
+    async removeFolder(docId: string, folder: string): Promise<{ documentUpdatedAt: string }> {
+      return request('DELETE', `/documents/${encodeURIComponent(docId)}/files?folder=${encodeURIComponent(folder)}`);
+    },
+    async compile(docId: string, engine?: LatexEngine): Promise<CompileJob> {
+      const data = await request<{ job: CompileJob }>(
+        'POST',
+        `/documents/${encodeURIComponent(docId)}/compile`,
+        engine ? { engine } : {}
+      );
+      return data.job;
+    },
+    /** Long-poll: volta quando o job termina ou depois de ~20 s. */
+    async waitJob(jobId: string, signal?: AbortSignal): Promise<CompileJob> {
+      const data = await request<{ job: CompileJob }>('GET', `/compile-jobs/${encodeURIComponent(jobId)}?wait=1`, undefined, signal);
+      return data.job;
+    },
+    async cancelJob(jobId: string): Promise<void> {
+      await request('DELETE', `/compile-jobs/${encodeURIComponent(jobId)}`);
+    },
+    async pdf(jobId: string, signal?: AbortSignal): Promise<Uint8Array> {
+      return requestBytes(`/compile-jobs/${encodeURIComponent(jobId)}/pdf`, signal);
     },
   },
 
