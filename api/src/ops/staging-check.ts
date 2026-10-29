@@ -107,12 +107,12 @@ export async function runStagingCheck(env: StagingCheckEnv, log: (l: string) => 
       expect(r!.v >= 180000 && r!.v < 190000, `versão ${r!.ver}`);
       return r!.ver;
     });
-    await attempt('6 migrations aplicadas', async () => {
+    await attempt('7 migrations aplicadas', async () => {
       const rows = await q<{ version: string }>('SELECT version FROM public.schema_migrations ORDER BY version');
       const names = rows.map((r) => r.version);
       expect(
         JSON.stringify(names) ===
-          JSON.stringify(['001_roles_schemas.sql', '002_auth_tables.sql', '003_app_tables.sql', '004_rls.sql', '005_backup_role.sql', '006_latex.sql']),
+          JSON.stringify(['001_roles_schemas.sql', '002_auth_tables.sql', '003_app_tables.sql', '004_rls.sql', '005_backup_role.sql', '006_latex.sql', '007_document_files_path_check.sql']),
         names.join(',')
       );
     });

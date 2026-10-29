@@ -51,6 +51,12 @@ A migration só **acrescenta** (colunas com default constante e uma tabela nova)
 foi testada aplicando 001–005, populando com o `staging-seed` e só então a 006:
 dados idênticos antes e depois (checksum), todos os documentos como Markdown.
 
+A `007_document_files_path_check.sql` reescreve o `CHECK` de caminho com a mesma
+regra: na 006 ele começava com `BETWEEN`, cujo texto muda ao passar por
+`pg_dump`/`pg_restore`, e o teste de restauração do backup diário acusava a
+diferença. O teste `todo CHECK tem texto estável` em `api/test/schema.test.ts`
+impede que isso volte.
+
 ### Por que os arquivos ficam no PostgreSQL
 
 Imagens e fontes dos projetos ficam em `bytea` (`STORAGE EXTERNAL`), com limites
@@ -138,9 +144,10 @@ do código. O frontend novo funciona com a API antiga (sem `kind` = Markdown).
 2. Criar `editor-markdown-latex` no projeto `editor-markdown-producao`, com um
    `COMPILER_TOKEN` **diferente** do staging; conferir o autoteste.
 3. `OPS_TASK=migrate-plan` no `editor-markdown-ops` de produção (somente
-   leitura): conferir host/banco de destino, `pendentes: 006_latex.sql` e as
+   leitura): conferir host/banco de destino, as migrations pendentes e as
    contagens de linhas iguais às do último backup. Só então `OPS_TASK=migrate`
-   (aplica só a 006) e voltar para `idle`.
+   (aplica só as pendentes) e voltar para `idle`. Rodar o backup e conferir
+   `RESULT=OK` (inclui o teste de restauração isolada).
 4. Merge do PR em `main` → deploy da API e da Vercel. Definir `COMPILER_URL`/
    `COMPILER_TOKEN` na API de produção.
 5. Verificar: abrir um documento Markdown antigo (nada mudou), criar um projeto
